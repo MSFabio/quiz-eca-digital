@@ -87,25 +87,85 @@ function loadRankings(): RankingEntry[] {
   return [...INITIAL_DEMO_RANKINGS];
 }
 
-function saveRankings(data: RankingEntry[]) {
+let rankingList: RankingEntry[] = loadRankings();
+
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+let isSaving = false;
+let pendingSave = false;
+
+async function persistRankingsAsync() {
+  if (isSaving) {
+    pendingSave = true;
+    return;
+  }
+  isSaving = true;
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    const dataString = JSON.stringify(rankingList, null, 2);
+    await fs.promises.writeFile(DATA_FILE, dataString, 'utf-8');
   } catch (err) {
     console.error('Error saving ranking data:', err);
+  } finally {
+    isSaving = false;
+    if (pendingSave) {
+      pendingSave = false;
+      persistRankingsAsync();
+    }
   }
 }
 
-let rankingList: RankingEntry[] = loadRankings();
+function saveRankings(data: RankingEntry[]) {
+  rankingList = data;
+  persistRankingsAsync();
+}
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
 
-  app.use(express.json());
+  // Basic CORS & JSON handling
+  app.use(express.json({ limit: '1mb' }));
+  app.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
 
   // API Routes
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      service: 'Quiz ECA Digital - DPRJ',
+      timestamp: new Date().toISOString(),
+      activeParticipants: rankingList.length,
+      uptimeSeconds: process.uptime(),
+    });
+  });
+
+  // Event Statistics endpoint (ideal for event dashboards & projections)
+  app.get('/api/stats', (req, res) => {
+    const total = rankingList.length;
+    if (total === 0) {
+      return res.json({
+        totalParticipants: 0,
+        averageScore: 0,
+        averageTimeSeconds: 0,
+        topScore: 0,
+      });
+    }
+    const sumScore = rankingList.reduce((acc, curr) => acc + curr.score, 0);
+    const sumTime = rankingList.reduce((acc, curr) => acc + curr.timeSeconds, 0);
+    const topScore = Math.max(...rankingList.map((r) => r.score));
+
+    res.json({
+      totalParticipants: total,
+      averageScore: Math.round(sumScore / total),
+      averageTimeSeconds: Number((sumTime / total).toFixed(1)),
+      topScore,
+    });
   });
 
   // Get current ranking sorted by Score DESC then Time ASC
@@ -123,7 +183,7 @@ async function startServer() {
     });
   });
 
-  // Add new match result
+  // Add new match result with high concurrency resilience
   app.post('/api/ranking', (req, res) => {
     const { name, organization, avatar, score, correctCount, totalQuestions, timeSeconds } = req.body;
 
@@ -131,15 +191,22 @@ async function startServer() {
       return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
     }
 
+    const cleanName = String(name).replace(/<[^>]*>?/gm, '').trim().substring(0, 40);
+    const cleanOrg = organization ? String(organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
+    const numScore = Math.max(0, Math.min(2000, Number(score) || 0));
+    const numCorrect = Math.max(0, Math.min(10, Number(correctCount) || 0));
+    const numTotal = Math.max(1, Math.min(50, Number(totalQuestions) || 10));
+    const numTime = Math.max(0.1, Number(timeSeconds) || 0);
+
     const newEntry: RankingEntry = {
       id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-      name: String(name).trim().substring(0, 40),
-      organization: organization ? String(organization).trim().substring(0, 50) : 'Geral',
+      name: cleanName || 'Participante',
+      organization: cleanOrg,
       avatar: avatar || '⭐',
-      score: Number(score),
-      correctCount: Number(correctCount || 0),
-      totalQuestions: Number(totalQuestions || 10),
-      timeSeconds: Number(timeSeconds),
+      score: numScore,
+      correctCount: numCorrect,
+      totalQuestions: numTotal,
+      timeSeconds: numTime,
       createdAt: new Date().toISOString(),
     };
 
