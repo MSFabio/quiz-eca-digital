@@ -106,8 +106,13 @@ export async function submitGameScore(payload: {
 export async function resetAllRankings(): Promise<boolean> {
   try {
     await fetch('/api/ranking', { method: 'DELETE' });
-  } catch {
-    // ignore
+  } catch (e) {
+    console.warn('Could not reset on server', e);
+  }
+  try {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  } catch (e) {
+    console.warn('Could not remove localStorage key', e);
   }
   saveLocalRankings([]);
   return true;

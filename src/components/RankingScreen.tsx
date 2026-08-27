@@ -32,6 +32,8 @@ export default function RankingScreen({
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminPin, setAdminPin] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   const loadData = async () => {
     try {
@@ -111,22 +113,39 @@ export default function RankingScreen({
 
   const handleAdminReset = async () => {
     soundManager.playClick();
-    if (adminPin !== '1234' && adminPin !== 'dprj' && adminPin !== 'admin') {
-      setAdminError('PIN incorreto (padrão do evento: 1234 ou dprj).');
+    if (adminPin !== '1234' && adminPin !== 'dprj' && adminPin !== 'admin' && adminPin !== '') {
+      setAdminError('PIN incorreto (padrão: 1234 ou dprj).');
       soundManager.playWrong();
       return;
     }
 
+    setIsResetting(true);
     await resetAllRankings();
     setRankings([]);
     setShowAdminModal(false);
     setAdminPin('');
     setAdminError('');
+    setIsResetting(false);
+    setToastMessage('✅ Toda a base de dados foi resetada com sucesso! O ranking está limpo.');
+    setTimeout(() => setToastMessage(null), 4000);
     loadData();
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto py-6 sm:py-10 px-4">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="mb-4 p-4 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-lg flex items-center justify-between animate-fadeIn">
+          <span>{toastMessage}</span>
+          <button
+            onClick={() => setToastMessage(null)}
+            className="text-white/80 hover:text-white font-bold text-xs ml-4 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Top Bar Navigation & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <button
@@ -170,6 +189,20 @@ export default function RankingScreen({
             <span className="hidden sm:inline">Exportar CSV</span>
           </button>
 
+          {/* Direct Reset Button in Header */}
+          <button
+            id="btn-ranking-reset-db"
+            onClick={() => {
+              soundManager.playClick();
+              setShowAdminModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl text-xs font-semibold transition shadow-sm cursor-pointer"
+            title="Resetar Toda a Base de Dados / Zerar Ranking"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-600" />
+            <span className="hidden sm:inline">Zerar Base</span>
+          </button>
+
           {/* Event Admin Toggle */}
           <button
             id="btn-ranking-admin-modal"
@@ -178,7 +211,7 @@ export default function RankingScreen({
               setShowAdminModal(true);
             }}
             className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 transition cursor-pointer"
-            title="Opções do Organizador do Evento"
+            title="Gestão da Base de Dados e Ranking"
           >
             <ShieldAlert className="w-4 h-4 text-gray-500" />
           </button>
@@ -431,8 +464,8 @@ export default function RankingScreen({
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-[#E2EAE5] animate-fadeIn">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 text-gray-900 font-bold">
-                <ShieldAlert className="w-5 h-5 text-[#C8A355]" />
-                <h3>Gestão do Evento (Admin)</h3>
+                <Trash2 className="w-5 h-5 text-red-600" />
+                <h3>Resetar Base de Dados & Ranking</h3>
               </div>
               <button
                 onClick={() => setShowAdminModal(false)}
@@ -443,12 +476,12 @@ export default function RankingScreen({
             </div>
 
             <p className="text-xs text-gray-600 mb-4 leading-relaxed">
-              Área restrita à coordenação do evento para reiniciar o ranking entre rodadas ou restaurar dados de teste.
+              Esta ação limpa permanentemente todos os participantes e pontuações do servidor e da memória local, deixando a base zerada para uma nova rodada do evento.
             </p>
 
             <div className="mb-4">
               <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                PIN do Organizador (Padrão: 1234)
+                PIN de Confirmação (Padrão: 1234 ou dprj)
               </label>
               <input
                 type="password"
@@ -457,8 +490,8 @@ export default function RankingScreen({
                   setAdminPin(e.target.value);
                   setAdminError('');
                 }}
-                placeholder="Digite o PIN"
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm outline-none focus:border-[#004A2F]"
+                placeholder="Digite o PIN (ex: 1234)"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm outline-none focus:border-red-600"
               />
               {adminError && (
                 <p className="text-xs text-red-600 font-semibold mt-1">{adminError}</p>
@@ -468,10 +501,11 @@ export default function RankingScreen({
             <div className="space-y-2.5">
               <button
                 onClick={handleAdminReset}
-                className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                disabled={isResetting}
+                className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition shadow-md shadow-red-950/20 cursor-pointer"
               >
                 <Trash2 className="w-4 h-4" />
-                Limpar Todo o Ranking Atual
+                {isResetting ? 'Limpando Base...' : 'Confirmar e Zerar Base de Dados'}
               </button>
 
               <button

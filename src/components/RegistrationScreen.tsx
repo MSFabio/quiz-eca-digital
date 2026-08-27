@@ -57,7 +57,7 @@ export default function RegistrationScreen({
           </h1>
 
           <p className="text-sm sm:text-base text-emerald-100 max-w-2xl leading-relaxed">
-            Teste seus conhecimentos sobre direitos de crianças e adolescentes no ambiente digital!
+            Descubra e aprofunde seus conhecimentos sobre os direitos de crianças e adolescentes no ambiente digital!
             Privacidade, inteligência artificial, publicidade velada, sharenting e trabalho infantil na internet.
           </p>
 
