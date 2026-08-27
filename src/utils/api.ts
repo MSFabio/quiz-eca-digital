@@ -2,6 +2,32 @@ import { RankingEntry } from '../types';
 
 const LOCAL_STORAGE_KEY = 'dprj_eca_quiz_rankings';
 
+// Support Google Apps Script native RPCs
+declare global {
+  interface Window {
+    google?: {
+      script?: {
+        run: {
+          withSuccessHandler: (fn: (res: any) => void) => {
+            withFailureHandler: (fn: (err: any) => void) => {
+              getRankings: () => void;
+              submitGameScore: (payload: any) => void;
+              resetAllRankings: () => void;
+            };
+            getRankings: () => void;
+            submitGameScore: (payload: any) => void;
+            resetAllRankings: () => void;
+          };
+        };
+      };
+    };
+  }
+}
+
+function isGasEnvironment(): boolean {
+  return typeof window !== 'undefined' && !!window.google?.script?.run;
+}
+
 function getLocalRankings(): RankingEntry[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -26,6 +52,25 @@ function saveLocalRankings(data: RankingEntry[]) {
 }
 
 export async function fetchRankings(): Promise<RankingEntry[]> {
+  // 1. Google Apps Script native environment
+  if (isGasEnvironment()) {
+    try {
+      const data = await new Promise<{ success: boolean; total: number; rankings: RankingEntry[] }>((resolve, reject) => {
+        window.google!.script!.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getRankings();
+      });
+      if (data && Array.isArray(data.rankings)) {
+        saveLocalRankings(data.rankings);
+        return data.rankings;
+      }
+    } catch (err) {
+      console.warn('GAS fetchRankings error fallback', err);
+    }
+  }
+
+  // 2. Standard Web / Node.js API environment
   try {
     const res = await fetch('/api/ranking', {
       headers: { Accept: 'application/json' },
@@ -52,6 +97,24 @@ export async function submitGameScore(payload: {
   totalQuestions: number;
   timeSeconds: number;
 }): Promise<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }> {
+  // 1. Google Apps Script native environment
+  if (isGasEnvironment()) {
+    try {
+      const res = await new Promise<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }>((resolve, reject) => {
+        window.google!.script!.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .submitGameScore(payload);
+      });
+      if (res && res.success) {
+        return res;
+      }
+    } catch (err) {
+      console.warn('GAS submitGameScore error fallback', err);
+    }
+  }
+
+  // 2. Standard Web / Node.js API environment
   const localList = getLocalRankings();
   const entry: RankingEntry = {
     id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
@@ -104,11 +167,26 @@ export async function submitGameScore(payload: {
 }
 
 export async function resetAllRankings(): Promise<boolean> {
-  try {
-    await fetch('/api/ranking', { method: 'DELETE' });
-  } catch (e) {
-    console.warn('Could not reset on server', e);
+  // 1. Google Apps Script native environment
+  if (isGasEnvironment()) {
+    try {
+      await new Promise((resolve, reject) => {
+        window.google!.script!.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .resetAllRankings();
+      });
+    } catch (err) {
+      console.warn('GAS resetAllRankings error', err);
+    }
+  } else {
+    try {
+      await fetch('/api/ranking', { method: 'DELETE' });
+    } catch (e) {
+      console.warn('Could not reset on server', e);
+    }
   }
+
   try {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
   } catch (e) {
