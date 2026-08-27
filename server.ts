@@ -333,11 +333,26 @@ async function startServer() {
     });
   });
 
-  // Reset ranking endpoint
+  // Reset ranking and participants endpoint
   app.delete('/api/ranking', (req, res) => {
+    const clearUsers = req.query.clearUsers !== 'false';
     rankingList = [];
     saveRankings(rankingList);
-    res.json({ success: true, message: 'Ranking limpo com sucesso.' });
+
+    if (clearUsers) {
+      // Retain only the default administrator account
+      usersList = usersList.filter((u) => u.role === 'admin' || u.email === 'admin@defensoria.rj.def.br');
+      saveUsers(usersList);
+    }
+
+    res.json({
+      success: true,
+      message: clearUsers
+        ? 'Toda a base de dados (ranking e contas de participantes) foi resetada com sucesso.'
+        : 'Tabela de ranking limpa com sucesso.',
+      usersCount: usersList.length,
+      rankingsCount: rankingList.length,
+    });
   });
 
   // ==========================================
@@ -383,7 +398,7 @@ async function startServer() {
     res.json({ success: true, message: 'Registro de ranking removido com sucesso.' });
   });
 
-  // Delete user account (Admin action)
+  // Delete single user account (Admin action)
   app.delete('/api/admin/users/:id', (req, res) => {
     const { id } = req.params;
     const targetUser = usersList.find((u) => u.id === id);
@@ -396,6 +411,13 @@ async function startServer() {
     usersList = usersList.filter((u) => u.id !== id);
     saveUsers(usersList);
     res.json({ success: true, message: 'Usuário removido com sucesso.' });
+  });
+
+  // Delete all non-admin participant users
+  app.delete('/api/admin/users', (req, res) => {
+    usersList = usersList.filter((u) => u.role === 'admin' || u.email === 'admin@defensoria.rj.def.br');
+    saveUsers(usersList);
+    res.json({ success: true, message: 'Todos os usuários participantes foram removidos com sucesso.' });
   });
 
   // Vite middleware for development vs Production static serving

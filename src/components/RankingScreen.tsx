@@ -120,13 +120,13 @@ export default function RankingScreen({
     }
 
     setIsResetting(true);
-    await resetAllRankings();
+    await resetAllRankings({ clearUsers: true });
     setRankings([]);
     setShowAdminModal(false);
     setAdminPin('');
     setAdminError('');
     setIsResetting(false);
-    setToastMessage('✅ Toda a base de dados foi resetada com sucesso! O ranking está limpo.');
+    setToastMessage('✅ Toda a base de dados (ranking e cadastros de participantes) foi resetada com sucesso!');
     setTimeout(() => setToastMessage(null), 4000);
     loadData();
   };

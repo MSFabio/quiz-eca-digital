@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   Users,
@@ -86,13 +86,19 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
     }
   };
 
+  const [clearUsersOption, setClearUsersOption] = useState(true);
+
   const handleResetRankings = async () => {
     setActionLoading(true);
     soundManager.playClick();
-    await resetAllRankings();
+    await resetAllRankings({ clearUsers: clearUsersOption });
     setActionLoading(false);
     setShowResetModal(false);
-    showToast('Toda a base de dados do ranking foi zerada com sucesso.');
+    showToast(
+      clearUsersOption
+        ? 'Toda a base de dados (ranking e contas de participantes) foi zerada com sucesso!'
+        : 'Tabela de ranking zerada com sucesso! Contas de participantes preservadas.'
+    );
     loadDashboard();
   };
 
@@ -521,11 +527,32 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 animate-fadeIn">
             <div className="flex items-center gap-2 text-red-600 font-bold mb-2">
               <Trash2 className="w-5 h-5" />
-              <h3>Zerar Todo o Ranking do Evento?</h3>
+              <h3>Zerar Base de Dados do Evento</h3>
             </div>
-            <p className="text-xs text-gray-600 mb-5 leading-relaxed">
-              Atenção: todas as pontuações e tempos registrados serão permanentemente apagados do servidor para iniciar uma nova rodada. As contas de usuários cadastrados serão preservadas.
+            <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+              Todas as pontuações e tempos do ranking oficial serão permanentemente apagados do servidor para iniciar uma nova rodada.
             </p>
+
+            {/* Clear Users Checkbox */}
+            <div className="mb-5 p-3.5 bg-red-50/80 border border-red-200 rounded-xl">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={clearUsersOption}
+                  onChange={(e) => setClearUsersOption(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300 cursor-pointer"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-red-900 block">
+                    Excluir também todos os cadastros de participantes
+                  </span>
+                  <span className="text-red-700 text-[11px] block mt-0.5">
+                    Apenas a conta de Administrador DPRJ será preservada. Recomendado para iniciar um evento novo.
+                  </span>
+                </div>
+              </label>
+            </div>
+
             <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowResetModal(false)}
@@ -538,7 +565,7 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
                 disabled={actionLoading}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
               >
-                {actionLoading ? 'Limpando...' : 'Sim, Zerar Ranking'}
+                {actionLoading ? 'Limpando...' : 'Sim, Confirmar e Zerar'}
               </button>
             </div>
           </div>

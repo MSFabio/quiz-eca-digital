@@ -13,7 +13,7 @@ declare global {
             withFailureHandler: (fn: (err: any) => void) => {
               getRankings: () => void;
               submitGameScore: (payload: any) => void;
-              resetAllRankings: () => void;
+              resetAllRankings: (options?: any) => void;
               loginUser: (payload: any) => void;
               registerUser: (payload: any) => void;
               getAdminDashboardData: () => void;
@@ -21,7 +21,7 @@ declare global {
             };
             getRankings: () => void;
             submitGameScore: (payload: any) => void;
-            resetAllRankings: () => void;
+            resetAllRankings: (options?: any) => void;
             loginUser: (payload: any) => void;
             registerUser: (payload: any) => void;
             getAdminDashboardData: () => void;
@@ -305,21 +305,23 @@ export async function submitGameScore(payload: {
   };
 }
 
-export async function resetAllRankings(): Promise<boolean> {
+export async function resetAllRankings(options?: { clearUsers?: boolean }): Promise<boolean> {
+  const clearUsers = options?.clearUsers ?? true;
+
   if (isGasEnvironment()) {
     try {
       await new Promise((resolve, reject) => {
         window.google!.script!.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .resetAllRankings();
+          .resetAllRankings({ clearUsers });
       });
     } catch (err) {
       console.warn('GAS resetAllRankings error', err);
     }
   } else {
     try {
-      await fetch('/api/ranking', { method: 'DELETE' });
+      await fetch(`/api/ranking?clearUsers=${clearUsers}`, { method: 'DELETE' });
     } catch (e) {
       console.warn('Could not reset on server', e);
     }
@@ -331,6 +333,13 @@ export async function resetAllRankings(): Promise<boolean> {
     console.warn('Could not remove localStorage key', e);
   }
   saveLocalRankings([]);
+
+  // If current logged-in user is a participant and all users were cleared, logout
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.role !== 'admin' && clearUsers) {
+    logoutUser();
+  }
+
   return true;
 }
 

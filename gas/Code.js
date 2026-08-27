@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
  * Backend Google Apps Script (GAS) com Google Sheets como Banco de Dados
  * Suporte a Autenticação (Login/Senha) e Painel Administrativo de Gestão
@@ -408,20 +408,55 @@ function deleteRankingEntry(id) {
   }
 }
 
-function resetAllRankings() {
+function resetAllRankings(options) {
+  const clearUsers = !options || options.clearUsers !== false;
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
-    const sheet = getOrCreateRankingSheet();
-    sheet.clearContents();
-    sheet.appendRow([
+    
+    // 1. Reset Ranking Sheet
+    const rankSheet = getOrCreateRankingSheet();
+    rankSheet.clearContents();
+    rankSheet.appendRow([
       'ID', 'Nome', 'Organizacao', 'Avatar', 'Pontos',
       'Acertos', 'TotalQuestoes', 'TempoSegundos', 'UserID', 'DataCriacao'
     ]);
-    sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
-    sheet.setFrozenRows(1);
+    rankSheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
+    rankSheet.setFrozenRows(1);
+
+    // 2. Reset Users Sheet (Clear all participants, re-initialize default Admin)
+    if (clearUsers) {
+      const usersSheet = getOrCreateUsersSheet();
+      usersSheet.clearContents();
+      usersSheet.appendRow([
+        'ID', 'Nome', 'Email', 'SenhaHash', 'Salt',
+        'Organizacao', 'Avatar', 'Role', 'DataCriacao'
+      ]);
+      usersSheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#003823').setFontColor('#C8A355');
+      usersSheet.setFrozenRows(1);
+
+      const salt = 'dprj_salt_' + Math.random().toString(36).substring(2, 8);
+      const passHash = hashPasswordGAS('Dprj@2026', salt);
+      usersSheet.appendRow([
+        'usr-admin-01',
+        'Coordenação DPRJ (Admin)',
+        'admin@defensoria.rj.def.br',
+        passHash,
+        salt,
+        'Defensoria Pública do Estado do RJ',
+        '🛡️',
+        'admin',
+        new Date().toISOString()
+      ]);
+    }
+
     CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
-    return { success: true, message: 'Base de dados resetada com sucesso.' };
+    return {
+      success: true,
+      message: clearUsers
+        ? 'Toda a base de dados (ranking e contas de participantes) foi resetada com sucesso.'
+        : 'Tabela de ranking limpa com sucesso.'
+    };
   } finally {
     lock.releaseLock();
   }
