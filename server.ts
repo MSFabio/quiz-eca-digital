@@ -17,74 +17,19 @@ interface RankingEntry {
 
 const DATA_FILE = path.join(process.cwd(), 'ranking-data.json');
 
-const INITIAL_DEMO_RANKINGS: RankingEntry[] = [
-  {
-    id: 'demo-1',
-    name: 'Mariana Costa',
-    organization: 'Defensoria Itaboraí',
-    avatar: '👩‍⚖️',
-    score: 1000,
-    correctCount: 10,
-    totalQuestions: 10,
-    timeSeconds: 48.5,
-    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-  },
-  {
-    id: 'demo-2',
-    name: 'Lucas Nogueira',
-    organization: 'Colégio Estadual RJ',
-    avatar: '👨‍🎓',
-    score: 950,
-    correctCount: 10,
-    totalQuestions: 10,
-    timeSeconds: 56.2,
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-  {
-    id: 'demo-3',
-    name: 'Beatriz Almeida',
-    organization: 'Universidade UERJ',
-    avatar: '👩‍💻',
-    score: 890,
-    correctCount: 9,
-    totalQuestions: 10,
-    timeSeconds: 52.8,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-  {
-    id: 'demo-4',
-    name: 'Pedro Henrique',
-    organization: 'Conselho Tutelar Centro',
-    avatar: '👨‍💼',
-    score: 870,
-    correctCount: 9,
-    totalQuestions: 10,
-    timeSeconds: 61.4,
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-  },
-  {
-    id: 'demo-5',
-    name: 'Camila Santos',
-    organization: 'Visitante Evento',
-    avatar: '🎯',
-    score: 800,
-    correctCount: 8,
-    totalQuestions: 10,
-    timeSeconds: 68.1,
-    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-  },
-];
-
 function loadRankings(): RankingEntry[] {
   try {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     }
   } catch (err) {
     console.error('Error loading ranking data:', err);
   }
-  return [...INITIAL_DEMO_RANKINGS];
+  return [];
 }
 
 let rankingList: RankingEntry[] = loadRankings();
@@ -234,13 +179,6 @@ async function startServer() {
     rankingList = [];
     saveRankings(rankingList);
     res.json({ success: true, message: 'Ranking limpo com sucesso.' });
-  });
-
-  // Restore demo participants endpoint
-  app.post('/api/ranking/seed', (req, res) => {
-    rankingList = [...INITIAL_DEMO_RANKINGS];
-    saveRankings(rankingList);
-    res.json({ success: true, count: rankingList.length, rankings: rankingList });
   });
 
   // Vite middleware for development vs Production static serving

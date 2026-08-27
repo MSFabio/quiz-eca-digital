@@ -2,75 +2,19 @@ import { RankingEntry } from '../types';
 
 const LOCAL_STORAGE_KEY = 'dprj_eca_quiz_rankings';
 
-// Default initial offline rankings fallback
-const DEFAULT_FALLBACK_RANKINGS: RankingEntry[] = [
-  {
-    id: 'demo-1',
-    name: 'Mariana Costa',
-    organization: 'Defensoria Itaboraí',
-    avatar: '👩‍⚖️',
-    score: 1000,
-    correctCount: 10,
-    totalQuestions: 10,
-    timeSeconds: 48.5,
-    createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-  },
-  {
-    id: 'demo-2',
-    name: 'Lucas Nogueira',
-    organization: 'Colégio Estadual RJ',
-    avatar: '👨‍🎓',
-    score: 950,
-    correctCount: 10,
-    totalQuestions: 10,
-    timeSeconds: 56.2,
-    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-  },
-  {
-    id: 'demo-3',
-    name: 'Beatriz Almeida',
-    organization: 'Universidade UERJ',
-    avatar: '👩‍💻',
-    score: 890,
-    correctCount: 9,
-    totalQuestions: 10,
-    timeSeconds: 52.8,
-    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-  {
-    id: 'demo-4',
-    name: 'Pedro Henrique',
-    organization: 'Conselho Tutelar Centro',
-    avatar: '👨‍💼',
-    score: 870,
-    correctCount: 9,
-    totalQuestions: 10,
-    timeSeconds: 61.4,
-    createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-  },
-  {
-    id: 'demo-5',
-    name: 'Camila Santos',
-    organization: 'Visitante Evento',
-    avatar: '🎯',
-    score: 800,
-    correctCount: 8,
-    totalQuestions: 10,
-    timeSeconds: 68.1,
-    createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-  },
-];
-
 function getLocalRankings(): RankingEntry[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Could not read rankings from localStorage', e);
   }
-  return [...DEFAULT_FALLBACK_RANKINGS];
+  return [];
 }
 
 function saveLocalRankings(data: RankingEntry[]) {
@@ -167,21 +111,4 @@ export async function resetAllRankings(): Promise<boolean> {
   }
   saveLocalRankings([]);
   return true;
-}
-
-export async function seedDemoRankings(): Promise<RankingEntry[]> {
-  try {
-    const res = await fetch('/api/ranking/seed', { method: 'POST' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.rankings) {
-        saveLocalRankings(data.rankings);
-        return data.rankings;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  saveLocalRankings(DEFAULT_FALLBACK_RANKINGS);
-  return DEFAULT_FALLBACK_RANKINGS;
 }

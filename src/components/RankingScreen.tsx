@@ -7,14 +7,13 @@ import {
   RefreshCw,
   Download,
   Trash2,
-  PlusCircle,
   ShieldAlert,
   ArrowLeft,
   Sparkles,
   Users,
 } from 'lucide-react';
 import { RankingEntry } from '../types';
-import { fetchRankings, resetAllRankings, seedDemoRankings } from '../utils/api';
+import { fetchRankings, resetAllRankings } from '../utils/api';
 import { soundManager } from '../utils/audio';
 
 interface RankingScreenProps {
@@ -124,15 +123,6 @@ export default function RankingScreen({
     setAdminPin('');
     setAdminError('');
     loadData();
-  };
-
-  const handleAdminSeed = async () => {
-    soundManager.playClick();
-    const data = await seedDemoRankings();
-    setRankings(data);
-    setShowAdminModal(false);
-    setAdminPin('');
-    setAdminError('');
   };
 
   return (
@@ -482,14 +472,6 @@ export default function RankingScreen({
               >
                 <Trash2 className="w-4 h-4" />
                 Limpar Todo o Ranking Atual
-              </button>
-
-              <button
-                onClick={handleAdminSeed}
-                className="w-full py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-              >
-                <PlusCircle className="w-4 h-4 text-[#004A2F]" />
-                Restaurar Participantes de Exemplo
               </button>
 
               <button

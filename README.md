@@ -48,7 +48,7 @@ graph TD
     C -->|Compartilhar Resultado| F[Área de Transferência / Redes]
     C -->|Novo Jogo| B
     E -->|Exportar Dados| G[Download de CSV para Organizadores]
-    E -->|Gestão com PIN| H[Painel Admin: Reset / Demo Seed]
+    E -->|Gestão com PIN| H[Painel Admin: Limpar Ranking]
 `
 
 1. **Cadastro Rápido do Participante:** Nome/apelido, instituição/escola/área (opcional) e seleção de avatar estilizado.
@@ -93,7 +93,7 @@ A aplicação foi auditada sob rigorosos critérios de **Engenharia de Qualidade
 
 | Métrica Avaliada | Resultado Obtido | Status |
 | :--- | :--- | :---: |
-| **Usuários Concorrentes Simulados** | **50 participantes** | ✅ Aprovado |
+| **Usuários Concorrentes Simultâneos** | **50 participantes** | ✅ Aprovado |
 | **Taxa de Sucesso das Requisições** | **100.0% (50/50 conexões)** | ✅ Aprovado |
 | **Tempo Total de Processamento de Toda a Carga** | **184 ms** | ✅ Excelente |
 | **Latência Média de Submissão de Placar (POST /api/ranking)** | **27.9 ms** (P95: 32ms, P99: 32ms) | ✅ Ultra Rápido |
@@ -131,7 +131,6 @@ A aplicação foi auditada sob rigorosos critérios de **Engenharia de Qualidade
 | POST | /api/ranking | Registra o resultado de uma partida e calcula a posição imediatamente |
 | GET | /api/stats | Retorna estatísticas consolidadas (média de pontos, tempo médio, recorde) |
 | DELETE | /api/ranking | Limpa todos os dados do ranking (destinado a encerramento de rodadas) |
-| POST | /api/ranking/seed | Restaura registros de demonstração para testes rápidos |
 
 ---
 
@@ -209,7 +208,6 @@ Para organizadores que precisam resetar a classificação entre turmas, rodadas 
 3. Digite o PIN de administrador (Padrão do evento: 1234 ou dprj).
 4. Selecione:
    - **Limpar Todo o Ranking Atual:** zera os registros para uma nova rodada limpa.
-   - **Restaurar Participantes de Exemplo:** insere dados de demonstração.
    - **Exportar CSV:** baixa a lista completa de participantes para premiações.
 
 ---
