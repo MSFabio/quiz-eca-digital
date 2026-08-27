@@ -1,0 +1,6 @@
+{
+  "name": "Quiz ECA Digital - DPRJ",
+  "description": "App de Quiz interativo para eventos sobre o ECA Digital com cadastro, ranking em tempo real, pontuação e cronômetro com a identidade visual da Defensoria Pública do RJ.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
