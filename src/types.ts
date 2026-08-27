@@ -14,10 +14,41 @@ export interface Question {
   explanation: string;
 }
 
+export type UserRole = 'admin' | 'participant';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  organization: string;
+  avatar: string;
+  role: UserRole;
+  createdAt: string;
+}
+
 export interface UserProfile {
   name: string;
   organization: string;
   avatar: string;
+  email?: string;
+  role?: UserRole;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  user?: User;
+  token?: string;
+  error?: string;
+}
+
+export interface AdminDashboardData {
+  totalUsers: number;
+  totalMatches: number;
+  averageScore: number;
+  averageTimeSeconds: number;
+  topScore: number;
+  rankings: RankingEntry[];
+  users: User[];
 }
 
 export interface UserAnswer {
@@ -54,4 +85,5 @@ export interface RankingEntry {
   createdAt: string;
 }
 
-export type ScreenState = 'register' | 'quiz' | 'result' | 'ranking';
+export type ScreenState = 'auth' | 'quiz' | 'result' | 'ranking' | 'admin';
+

@@ -2,20 +2,19 @@
 
 Aplicação web interativa gamificada desenvolvida para eventos, ações educativas e feiras institucionais da **Defensoria Pública do Estado do Rio de Janeiro (DPRJ)**, com foco na conscientização sobre os direitos de crianças e adolescentes no ambiente digital (**ECA Digital**, LGPD e proteção integral).
 
-Suporta execução local (Node.js/Express), deploy em Cloud (Render/Railway/Vercel) e **Deploy como Web App no Google Apps Script (GAS)** com **Google Sheets** como banco de dados em tempo real.
+Possui controle de acesso obrigatório (cadastro e login com senha criptografada), painel administrativo para gestores da DPRJ, e suporte completo a **Node.js/Express** e **Google Apps Script (GAS)** com **Google Sheets**.
 
 ---
 
 ## 📌 Sumário
 - [Visão Geral e Objetivos](#-visão-geral-e-objetivos)
-- [Funcionalidades e Jornada do Usuário](#-funcionalidades-e-jornada-do-usuário)
-- [Identidade Visual e Experiência (UI/UX)](#-identidade-visual-e-experiência-uiux)
+- [Gerenciamento de Acesso (Cadastro e Login com Senha)](#-gerenciamento-de-acesso-cadastro-e-login-com-senha)
+- [Painel Administrativo do Organizador (Admin DPRJ)](#-painel-administrativo-do-organizador-admin-dprj)
+- [Jornada do Usuário e Fluxo](#-jornada-do-usuário-e-fluxo)
 - [Garantia de Qualidade e Teste de Concorrência (50+ Usuários)](#-garantia-de-qualidade-e-teste-de-concorrência-50-usuários)
-- [Arquitetura e Stack Tecnológica](#-arquitetura-e-stack-tecnológica)
 - [Deploy no Google Apps Script (Guia Passo a Passo)](#-deploy-no-google-apps-script-guia-passo-a-passo)
 - [Como Executar Localmente](#-como-executar-localmente)
-- [Como Executar o Teste de Carga Automatizado](#-como-executar-o-teste-de-carga-automatizado)
-- [Painel Administrativo e Reset da Base de Dados](#-painel-administrativo-e-reset-da-base-de-dados)
+- [Como Executar os Testes Automatizados](#-como-executar-os-testes-automatizados)
 
 ---
 
@@ -24,72 +23,60 @@ Suporta execução local (Node.js/Express), deploy em Cloud (Render/Railway/Verc
 O **Quiz ECA Digital** tem como missão levar a discussão jurídica e pedagógica sobre o uso seguro, ético e protegido da tecnologia para jovens, pais, educadores e operadores do direito.
 
 ### Temas Abordados nas 10 Questões:
-1. **Responsabilidade Compartilhada:** Família, plataformas de redes sociais, sociedade e Estado no dever de proteção.
+1. **Responsabilidade Compartilhada:** Família, redes sociais, sociedade e Estado no dever de proteção.
 2. **Design Persuasivo e Algoritmos:** Autoplay, rolagem infinita e captura de atenção infantojuvenil.
-3. **Inteligência Artificial e Vínculo Afetivo:** Limites éticos, transparência e vedação a manipulações psicológicas.
-4. **Verificação Efetiva de Idade:** Insuficiência de autodeclarações simples em conteúdos adultos.
-5. **Privacidade e LGPD:** Princípio da finalidade, necessidade e vedação ao uso secundário de dados de menores.
-6. **Publicidade Infantil Disfarçada:** Vedação ao marketing abusivo e influenciadores digitais sem aviso claro.
-7. **Saúde Mental e Autoimagem:** Espirais de recomendação algorítmica e padrões irreais de estética.
-8. **Sharenting e Direito à Imagem:** Respeito à intimidade e à vontade progressiva de crianças e jovens pelos responsáveis.
-9. **Exposição Vexatória na Internet:** Limites entre recordação familiar e violação de dignidade.
-10. **Trabalho Infantil Digital:** Condições legais, proteção patrimonial e autorização judicial para criadores mirins.
+3. **Inteligência Artificial e Vínculo Afetivo:** Limites éticos, transparência e manipulações psicológicas.
+4. **Verificação Efetiva de Idade:** Insuficiência de autodeclarações em conteúdos adultos.
+5. **Privacidade e LGPD:** Princípio da finalidade, necessidade e dados de menores.
+6. **Publicidade Infantil Disfarçada:** Vedação ao marketing abusivo e influenciadores mirins.
+7. **Saúde Mental e Autoimagem:** Espirais de recomendação algorítmica e filtros estéticos.
+8. **Sharenting e Direito à Imagem:** Intimidade e vontade progressiva de crianças e jovens.
+9. **Exposição Vexatória na Internet:** Limites entre memória familiar e violação de dignidade.
+10. **Trabalho Infantil Digital:** Condições legais, proteção patrimonial e autorização judicial.
 
 ---
 
-## 🚀 Funcionalidades e Jornada do Usuário
+## 🔐 Gerenciamento de Acesso (Cadastro e Login com Senha)
 
-`mermaid
+A aplicação exige autenticação prévia de todos os participantes:
+- **Cadastro de Participante:** Nome, E-mail (login), Senha (mínimo 4 caracteres), Instituição/Escola e Avatar.
+- **Segurança Criptográfica:** Hashing HMAC SHA-256 com Salt único por usuário tanto no Node.js quanto no Google Apps Script.
+- **Sessão Persistente:** O participante permanece conectado durante a rodada do evento.
+
+---
+
+## 🛡️ Painel Administrativo do Organizador (Admin DPRJ)
+
+Os organizadores e coordenadores da Defensoria Pública possuem um painel dedicado para gestão do evento:
+
+### 🔑 Credenciais Padrão do Administrador:
+- **E-mail:** `admin@defensoria.rj.def.br`
+- **Senha Inicial:** `Dprj@2026`
+
+### ⚡ Recursos do Painel Admin:
+1. **Métricas em Tempo Real:** Cards de Total de Usuários Inscritos, Partidas Jogadas, Média de Pontos, Tempo Médio e Recorde.
+2. **Gestão da Tabela de Ranking:** Visualização completa de pontuações com botão de **Excluir Pontuação Individual** (🗑️) para remover entradas de teste ou duplicidades.
+3. **Gestão de Usuários Cadastrados:** Lista de participantes com dados institucionais e opção de exclusão.
+4. **Exportação de Relatórios (CSV):** Download imediato de planilha compatível com Excel para premiações.
+5. **Zerar Base de Dados:** Limpeza global com confirmação para reiniciar rodadas entre turmas ou dias de evento.
+
+---
+
+## 🚀 Jornada do Usuário e Fluxo
+
+```mermaid
 graph TD
-    A[Tela Inicial / Cadastro] -->|Nome + Instituição + Avatar| B[10 Questões Interativas]
-    B -->|Feedback Pedagógico Imediato + Bônus| B
-    B -->|Última Resposta| C[Tela de Resultados com Pódio]
-    C -->|Ver Gabarito Completo| D[Modal de Revisão Comentada]
-    C -->|Ver Posição Geral| E[Ranking em Tempo Real]
-    C -->|Compartilhar Resultado| F[Área de Transferência / Redes]
-    C -->|Novo Jogo| B
-    E -->|Exportar Dados| G[Download de CSV para Organizadores]
-    E -->|Zerar Base no Front| H[Modal de Reset com PIN: 1234]
-`
-
----
-
-## 📑 Deploy no Google Apps Script (Guia Passo a Passo)
-
-A pasta [gas/](./gas) já contém todos os arquivos necessários para implantar o Quiz no **Google Apps Script**:
-- [gas/Code.js](./gas/Code.js): Backend em Apps Script com doGet, getRankings, submitGameScore, esetAllRankings, LockService (concorrência) e CacheService.
-- [gas/index.html](./gas/index.html): Bundle compilado único com todo o React 19, Tailwind CSS e áudio nativo inlined.
-- [gas/appsscript.json](./gas/appsscript.json): Manifesto de configuração do Web App.
-
-### 🛠️ Passo a Passo para Implantar no script.google.com:
-
-1. **Acesse o Google Apps Script:**
-   - Abra o link: **[https://script.google.com/home/?hl=pt-br](https://script.google.com/home/?hl=pt-br)**
-   - Clique em **+ Novo projeto** (canto superior esquerdo) e renomeie o projeto para: Quiz ECA Digital - DPRJ.
-
-2. **Inserir o Código Backend (Code.gs):**
-   - Clique no arquivo Código.gs (ou Code.gs) que já vem criado.
-   - Apague o conteúdo existente e cole todo o conteúdo do arquivo [gas/Code.js](./gas/Code.js).
-   - Clique no ícone de **Salvar (Ctrl+S)**.
-
-3. **Inserir o Frontend Compilado (index.html):**
-   - No menu lateral esquerdo, clique no botão **+** (ao lado de *Arquivos*) ➔ escolha **HTML**.
-   - Digite o nome: index (o Google adiciona automaticamente o .html).
-   - Apague o conteúdo padrão e cole todo o conteúdo do arquivo [gas/index.html](./gas/index.html).
-   - Clique no ícone de **Salvar (Ctrl+S)**.
-
-4. **Publicar e Implantar o Web App:**
-   - No canto superior direito, clique no botão azul **Implantar (Deploy)** ➔ **Nova implantação**.
-   - Clique no ícone de engrenagem (⚙️) ao lado de *Selecionar tipo* ➔ selecione **App da Web**.
-   - Preencha as opções:
-     - **Descrição:** Quiz ECA Digital v1.0 - DPRJ
-     - **Executar como:** Eu (seu e-mail)
-     - **Quem pode acessar:** Qualquer pessoa *(imprescindível para permitir acesso público nos eventos sem login)*.
-   - Clique em **Implantar**.
-   - Na primeira vez, clique em **Autorizar acesso** (concedendo permissão para criar/ler a planilha de ranking do Google).
-   - **Copie a URL do App da Web** fornecida!
-
-5. **Pronto!** A aplicação estará no ar na nuvem do Google, gravando pontuações em tempo real em uma Planilha Google vinculada automaticamente, com cache e suporte a alta concorrência.
+    A[Tela de Acesso / AuthScreen] -->|Cadastro ou Login| B{Perfil do Usuário}
+    B -->|Participante| C[10 Questões Interativas do Quiz]
+    B -->|Administrador| D[Painel de Controle Admin]
+    C -->|Feedback Imediato + Bônus| C
+    C -->|Fim do Quiz| E[Tela de Resultados com Pódio]
+    E -->|Gabarito Comentado| F[Modal de Revisão Pedagógica]
+    E -->|Classificação Geral| G[Ranking em Tempo Real]
+    D -->|Gestão de Pontuações| H[Excluir Registro Individual]
+    D -->|Zerar Rodada| I[Reset Global da Base]
+    D -->|Relatório| J[Download de CSV Formatado]
+```
 
 ---
 
@@ -99,41 +86,59 @@ A pasta [gas/](./gas) já contém todos os arquivos necessários para implantar 
 | :--- | :--- | :---: |
 | **Usuários Concorrentes Simultâneos** | **50 participantes** | ✅ Aprovado |
 | **Taxa de Sucesso das Requisições** | **100.0% (50/50 conexões)** | ✅ Aprovado |
-| **Tempo Total de Processamento** | **184 ms** | ✅ Ultra Rápido |
-| **Latência Média de Envio de Placar** | **27.9 ms** (P95: 32ms) | ✅ Excelente |
-| **Latência Média de Consulta do Ranking** | **30.7 ms** (P95: 36ms) | ✅ Excelente |
-| **Prevenção de Conflitos / Race Conditions** | LockService (GAS) / Fila Assíncrona (Node) | ✅ Verificado |
+| **Tempo Total de Processamento** | **146 ms** | ✅ Ultra Rápido |
+| **Latência Média de Envio de Placar** | **25.3 ms** (P95: 29ms) | ✅ Excelente |
+| **Latência Média de Consulta do Ranking** | **23.6 ms** (P95: 30ms) | ✅ Excelente |
+| **Autenticação & Hashing de Senhas** | SHA-256 + Salt único | ✅ Seguro |
+| **Prevenção de Conflitos Concorrentes** | `LockService` (GAS) / Lock Assíncrono (Node) | ✅ Verificado |
+
+---
+
+## 📑 Deploy no Google Apps Script (Guia Passo a Passo)
+
+A pasta [`gas/`](./gas) contém todos os arquivos prontos:
+- [`gas/Code.js`](./gas/Code.js): Backend Apps Script com autenticação (`loginUser`, `registerUser`), banco em duas abas (`Usuarios` e `Ranking`), `LockService` e `CacheService`.
+- [`gas/index.html`](./gas/index.html): Bundle compilado único com todo o React 19, Tailwind CSS e áudio inlined.
+- [`gas/appsscript.json`](./gas/appsscript.json): Manifesto do Web App.
+
+### 🛠️ Como Implantar no script.google.com:
+
+1. **Acesse:** **[https://script.google.com/home/?hl=pt-br](https://script.google.com/home/?hl=pt-br)**
+2. Clique em **+ Novo projeto** e nomeie como: `Quiz ECA Digital - DPRJ`.
+3. No arquivo `Código.gs` (ou `Code.gs`), apague o código e cole todo o conteúdo de [`gas/Code.js`](./gas/Code.js). Salve (**Ctrl+S**).
+4. No menu esquerdo, clique no botão **+** (ao lado de *Arquivos*) ➔ **HTML** ➔ nomeie como `index` ➔ cole o conteúdo de [`gas/index.html`](./gas/index.html). Salve (**Ctrl+S**).
+5. Clique em **Implantar** no topo direito ➔ **Nova implantação**:
+   - Tipo: **App da Web** (⚙️)
+   - Executar como: `Eu`
+   - Quem pode acessar: `Qualquer pessoa`
+6. Clique em **Implantar**, autorize o acesso e copie a URL pública gerada!
 
 ---
 
 ## 💻 Como Executar Localmente
 
-### Pré-requisitos
-- **Node.js** v20 ou superior
-- **npm** v10 ou superior
-
-`ash
+```bash
 # 1. Instalar dependências
 npm install
 
-# 2. Modo Desenvolvimento
+# 2. Iniciar servidor local
 npm run dev
 
 # 3. Gerar novo bundle para Google Apps Script
 npm run build:gas
-
-# 4. Executar Teste de Carga de 50 Usuários
-npm run test:load
-`
+```
 
 ---
 
-## 🛡️ Painel Administrativo e Reset da Base de Dados
+## 🧪 Como Executar os Testes Automatizados
 
-- **Reset pelo Front-End:** Acesse a tela de **Ranking Geral** e clique no botão **"Zerar Base"** no topo da página.
-- **PIN de Segurança:** Digite 1234 ou dprj para confirmar a limpeza.
-- **Efeito:** Limpa simultaneamente o servidor (Planilha Google / Node.js) e o armazenamento local (localStorage), exibindo notificação visual de confirmação.
-- **Exportação CSV:** Botão **"Exportar CSV"** na tela de ranking para download imediato da tabela formatada para Excel.
+```bash
+# Teste de Carga de 50 Usuários Simultâneos
+npm run test:load
+
+# Teste de Autenticação e Endpoints do Painel Admin
+node scripts/test-auth-and-admin.mjs
+```
 
 ---
 

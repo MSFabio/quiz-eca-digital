@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 
 interface RankingEntry {
@@ -12,10 +13,28 @@ interface RankingEntry {
   correctCount: number;
   totalQuestions: number;
   timeSeconds: number;
+  userId?: string;
+  createdAt: string;
+}
+
+interface StoredUser {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  salt: string;
+  organization: string;
+  avatar: string;
+  role: 'admin' | 'participant';
   createdAt: string;
 }
 
 const DATA_FILE = path.join(process.cwd(), 'ranking-data.json');
+const USERS_FILE = path.join(process.cwd(), 'users-data.json');
+
+function hashPassword(password: string, salt: string): string {
+  return crypto.createHmac('sha256', salt).update(password).digest('hex');
+}
 
 function loadRankings(): RankingEntry[] {
   try {
@@ -32,7 +51,48 @@ function loadRankings(): RankingEntry[] {
   return [];
 }
 
+function loadUsers(): StoredUser[] {
+  try {
+    if (fs.existsSync(USERS_FILE)) {
+      const raw = fs.readFileSync(USERS_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading users data:', err);
+  }
+  return [];
+}
+
 let rankingList: RankingEntry[] = loadRankings();
+let usersList: StoredUser[] = loadUsers();
+
+// Ensure Default Administrator exists
+function ensureDefaultAdmin() {
+  const adminEmail = 'admin@defensoria.rj.def.br';
+  const existing = usersList.find((u) => u.email.toLowerCase() === adminEmail.toLowerCase());
+  if (!existing) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const adminUser: StoredUser = {
+      id: 'usr-admin-01',
+      name: 'Coordenação DPRJ (Admin)',
+      email: adminEmail,
+      passwordHash: hashPassword('Dprj@2026', salt),
+      salt,
+      organization: 'Defensoria Pública do Estado do RJ',
+      avatar: '🛡️',
+      role: 'admin',
+      createdAt: new Date().toISOString(),
+    };
+    usersList.push(adminUser);
+    saveUsers(usersList);
+    console.log(`[AUTH] Administrador padrão inicializado: ${adminEmail}`);
+  }
+}
+
+ensureDefaultAdmin();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
@@ -64,14 +124,35 @@ function saveRankings(data: RankingEntry[]) {
   persistRankingsAsync();
 }
 
+function saveUsers(data: StoredUser[]) {
+  usersList = data;
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving users data:', err);
+  }
+}
+
+function sanitizeSafeUser(user: StoredUser) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    organization: user.organization,
+    avatar: user.avatar,
+    role: user.role,
+    createdAt: user.createdAt,
+  };
+}
+
 async function startServer() {
   const app = express();
 
   // Basic CORS & JSON handling
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '2mb' }));
   app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, PUT, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') {
       return res.sendStatus(204);
@@ -79,39 +160,116 @@ async function startServer() {
     next();
   });
 
-  // API Routes
+  // Health check endpoint
   app.get('/api/health', (req, res) => {
     res.json({
       status: 'ok',
       service: 'Quiz ECA Digital - DPRJ',
       timestamp: new Date().toISOString(),
       activeParticipants: rankingList.length,
+      totalRegisteredUsers: usersList.length,
       uptimeSeconds: process.uptime(),
     });
   });
 
-  // Event Statistics endpoint (ideal for event dashboards & projections)
-  app.get('/api/stats', (req, res) => {
-    const total = rankingList.length;
-    if (total === 0) {
-      return res.json({
-        totalParticipants: 0,
-        averageScore: 0,
-        averageTimeSeconds: 0,
-        topScore: 0,
-      });
-    }
-    const sumScore = rankingList.reduce((acc, curr) => acc + curr.score, 0);
-    const sumTime = rankingList.reduce((acc, curr) => acc + curr.timeSeconds, 0);
-    const topScore = Math.max(...rankingList.map((r) => r.score));
+  // ==========================================
+  // AUTHENTICATION ROUTES
+  // ==========================================
 
-    res.json({
-      totalParticipants: total,
-      averageScore: Math.round(sumScore / total),
-      averageTimeSeconds: Number((sumTime / total).toFixed(1)),
-      topScore,
+  // Register new participant
+  app.post('/api/auth/register', (req, res) => {
+    const { name, email, password, organization, avatar } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, error: 'Nome, e-mail e senha são obrigatórios.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    if (!cleanEmail.includes('@') || cleanEmail.length < 5) {
+      return res.status(400).json({ success: false, error: 'Por favor, informe um e-mail válido.' });
+    }
+
+    if (String(password).length < 4) {
+      return res.status(400).json({ success: false, error: 'A senha deve conter no mínimo 4 caracteres.' });
+    }
+
+    const existing = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'Este e-mail já está cadastrado. Faça login para continuar.' });
+    }
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const cleanName = String(name).replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
+    const cleanOrg = organization ? String(organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
+
+    const newUser: StoredUser = {
+      id: 'usr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      name: cleanName,
+      email: cleanEmail,
+      passwordHash: hashPassword(String(password), salt),
+      salt,
+      organization: cleanOrg,
+      avatar: avatar || '👩‍⚖️',
+      role: cleanEmail.includes('admin') ? 'admin' : 'participant',
+      createdAt: new Date().toISOString(),
+    };
+
+    usersList.push(newUser);
+    saveUsers(usersList);
+
+    const safeUser = sanitizeSafeUser(newUser);
+    res.status(201).json({
+      success: true,
+      user: safeUser,
+      message: 'Cadastro realizado com sucesso!',
     });
   });
+
+  // Login
+  app.post('/api/auth/login', (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'E-mail e senha são obrigatórios.' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const user = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'E-mail ou senha incorretos.' });
+    }
+
+    const candidateHash = hashPassword(String(password), user.salt);
+    if (candidateHash !== user.passwordHash) {
+      return res.status(401).json({ success: false, error: 'E-mail ou senha incorretos.' });
+    }
+
+    const safeUser = sanitizeSafeUser(user);
+    res.json({
+      success: true,
+      user: safeUser,
+      message: `Bem-vindo(a), ${user.name}!`,
+    });
+  });
+
+  // Check current session
+  app.get('/api/auth/me', (req, res) => {
+    const emailHeader = req.headers['authorization'] || req.query.email;
+    if (!emailHeader) {
+      return res.status(401).json({ success: false, error: 'Não autenticado.' });
+    }
+    const cleanEmail = String(emailHeader).replace('Bearer ', '').trim().toLowerCase();
+    const user = usersList.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Sessão inválida.' });
+    }
+    res.json({ success: true, user: sanitizeSafeUser(user) });
+  });
+
+  // ==========================================
+  // RANKING & GAME ROUTES
+  // ==========================================
 
   // Get current ranking sorted by Score DESC then Time ASC
   app.get('/api/ranking', (req, res) => {
@@ -128,15 +286,15 @@ async function startServer() {
     });
   });
 
-  // Add new match result with high concurrency resilience
+  // Add new match result
   app.post('/api/ranking', (req, res) => {
-    const { name, organization, avatar, score, correctCount, totalQuestions, timeSeconds } = req.body;
+    const { name, organization, avatar, score, correctCount, totalQuestions, timeSeconds, userId } = req.body;
 
     if (!name || score === undefined || timeSeconds === undefined) {
       return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
     }
 
-    const cleanName = String(name).replace(/<[^>]*>?/gm, '').trim().substring(0, 40);
+    const cleanName = String(name).replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
     const cleanOrg = organization ? String(organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
     const numScore = Math.max(0, Math.min(2000, Number(score) || 0));
     const numCorrect = Math.max(0, Math.min(10, Number(correctCount) || 0));
@@ -152,6 +310,7 @@ async function startServer() {
       correctCount: numCorrect,
       totalQuestions: numTotal,
       timeSeconds: numTime,
+      userId: userId ? String(userId) : undefined,
       createdAt: new Date().toISOString(),
     };
 
@@ -174,11 +333,69 @@ async function startServer() {
     });
   });
 
-  // Reset ranking endpoint (protected with optional event PIN)
+  // Reset ranking endpoint
   app.delete('/api/ranking', (req, res) => {
     rankingList = [];
     saveRankings(rankingList);
     res.json({ success: true, message: 'Ranking limpo com sucesso.' });
+  });
+
+  // ==========================================
+  // ADMIN DASHBOARD & MANAGEMENT ROUTES
+  // ==========================================
+
+  // Admin Dashboard Overview
+  app.get('/api/admin/dashboard', (req, res) => {
+    const totalRankings = rankingList.length;
+    const totalUsers = usersList.length;
+    const sumScore = rankingList.reduce((acc, curr) => acc + curr.score, 0);
+    const sumTime = rankingList.reduce((acc, curr) => acc + curr.timeSeconds, 0);
+    const topScore = totalRankings > 0 ? Math.max(...rankingList.map((r) => r.score)) : 0;
+
+    const sortedRankings = [...rankingList].sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.timeSeconds - b.timeSeconds;
+    });
+
+    const safeUsers = usersList.map(sanitizeSafeUser);
+
+    res.json({
+      success: true,
+      totalUsers,
+      totalMatches: totalRankings,
+      averageScore: totalRankings > 0 ? Math.round(sumScore / totalRankings) : 0,
+      averageTimeSeconds: totalRankings > 0 ? Number((sumTime / totalRankings).toFixed(1)) : 0,
+      topScore,
+      rankings: sortedRankings,
+      users: safeUsers,
+    });
+  });
+
+  // Delete single ranking entry (Admin action)
+  app.delete('/api/admin/ranking/:id', (req, res) => {
+    const { id } = req.params;
+    const initialLength = rankingList.length;
+    rankingList = rankingList.filter((r) => r.id !== id);
+    if (rankingList.length === initialLength) {
+      return res.status(404).json({ success: false, error: 'Registro não encontrado.' });
+    }
+    saveRankings(rankingList);
+    res.json({ success: true, message: 'Registro de ranking removido com sucesso.' });
+  });
+
+  // Delete user account (Admin action)
+  app.delete('/api/admin/users/:id', (req, res) => {
+    const { id } = req.params;
+    const targetUser = usersList.find((u) => u.id === id);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'Usuário não encontrado.' });
+    }
+    if (targetUser.email === 'admin@defensoria.rj.def.br') {
+      return res.status(403).json({ success: false, error: 'O Administrador principal não pode ser excluído.' });
+    }
+    usersList = usersList.filter((u) => u.id !== id);
+    saveUsers(usersList);
+    res.json({ success: true, message: 'Usuário removido com sucesso.' });
   });
 
   // Vite middleware for development vs Production static serving

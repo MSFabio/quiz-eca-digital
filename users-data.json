@@ -1,0 +1,13 @@
+[
+  {
+    "id": "usr-admin-01",
+    "name": "Coordenação DPRJ (Admin)",
+    "email": "admin@defensoria.rj.def.br",
+    "passwordHash": "5d7b1431762b169dab850d32227429944e8c0a4897574fef3744efe55357b699",
+    "salt": "12d34b552b19f8491d541b03981db567",
+    "organization": "Defensoria Pública do Estado do RJ",
+    "avatar": "🛡️",
+    "role": "admin",
+    "createdAt": "2026-08-27T19:09:45.602Z"
+  }
+]

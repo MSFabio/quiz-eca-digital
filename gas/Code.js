@@ -1,26 +1,23 @@
 ﻿/**
  * Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
  * Backend Google Apps Script (GAS) com Google Sheets como Banco de Dados
+ * Suporte a Autenticação (Login/Senha) e Painel Administrativo de Gestão
  */
 
-const SHEET_NAME = 'Ranking';
+const SHEET_RANKING = 'Ranking';
+const SHEET_USERS = 'Usuarios';
 const CACHE_KEY_RANKING = 'dprj_quiz_ranking_json';
-const CACHE_TTL_SECONDS = 15; // 15 segundos de cache para suportar 50+ usuários simultâneos
+const CACHE_TTL_SECONDS = 15;
 
-/**
- * Obtém ou cria a aba de Ranking na Planilha Google
- */
-function getOrCreateSheet() {
+function getSpreadsheet() {
   let ss;
   try {
     ss = SpreadsheetApp.getActiveSpreadsheet();
   } catch (e) {
-    // Caso seja script standalone, usa o ID salvo nas propriedades do script se houver
     const propId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
     if (propId) {
       ss = SpreadsheetApp.openById(propId);
     } else {
-      // Cria uma nova planilha automaticamente se não estiver vinculado
       ss = SpreadsheetApp.create('Quiz ECA Digital - Base de Dados DPRJ');
       PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
     }
@@ -35,39 +32,75 @@ function getOrCreateSheet() {
       PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
     }
   }
+  return ss;
+}
 
-  let sheet = ss.getSheetByName(SHEET_NAME);
+function getOrCreateRankingSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_RANKING);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
+    sheet = ss.insertSheet(SHEET_RANKING);
     sheet.appendRow([
-      'ID',
-      'Nome',
-      'Organizacao',
-      'Avatar',
-      'Pontos',
-      'Acertos',
-      'TotalQuestoes',
-      'TempoSegundos',
-      'DataCriacao'
+      'ID', 'Nome', 'Organizacao', 'Avatar', 'Pontos',
+      'Acertos', 'TotalQuestoes', 'TempoSegundos', 'UserID', 'DataCriacao'
     ]);
-    sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
+    sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
     sheet.setFrozenRows(1);
   }
   return sheet;
 }
 
-/**
- * Ponto de entrada GET do Web App
- */
+function getOrCreateUsersSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_USERS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_USERS);
+    sheet.appendRow([
+      'ID', 'Nome', 'Email', 'SenhaHash', 'Salt',
+      'Organizacao', 'Avatar', 'Role', 'DataCriacao'
+    ]);
+    sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#003823').setFontColor('#C8A355');
+    sheet.setFrozenRows(1);
+
+    // Inicializa Administrador padrão
+    const salt = 'dprj_salt_' + Math.random().toString(36).substring(2, 8);
+    const passHash = hashPasswordGAS('Dprj@2026', salt);
+    sheet.appendRow([
+      'usr-admin-01',
+      'Coordenação DPRJ (Admin)',
+      'admin@defensoria.rj.def.br',
+      passHash,
+      salt,
+      'Defensoria Pública do Estado do RJ',
+      '🛡️',
+      'admin',
+      new Date().toISOString()
+    ]);
+  }
+  return sheet;
+}
+
+function hashPasswordGAS(password, salt) {
+  const rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password + salt, Utilities.Charset.UTF_8);
+  let hex = '';
+  for (let i = 0; i < rawHash.length; i++) {
+    const byte = (rawHash[i] + 256) % 256;
+    const byteHex = byte.toString(16);
+    hex += byteHex.length === 1 ? '0' + byteHex : byteHex;
+  }
+  return hex;
+}
+
+// ==========================================
+// HTTP ENDPOINTS
+// ==========================================
+
 function doGet(e) {
-  // Rota REST API para consulta via GET
   if (e && e.parameter && e.parameter.action === 'ranking') {
-    const rankingData = getRankings();
-    return ContentService.createTextOutput(JSON.stringify(rankingData))
+    return ContentService.createTextOutput(JSON.stringify(getRankings()))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Rota REST API para status/health
   if (e && e.parameter && e.parameter.action === 'health') {
     return ContentService.createTextOutput(JSON.stringify({
       status: 'ok',
@@ -76,16 +109,12 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  // Servir a Aplicação Web (Single-page App)
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Quiz ECA Digital — Defensoria Pública do RJ')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 
-/**
- * Ponto de entrada POST do Web App (caso chamado via REST externo)
- */
 function doPost(e) {
   try {
     let payload;
@@ -95,9 +124,16 @@ function doPost(e) {
       payload = e.parameter;
     }
 
+    if (payload.action === 'login') {
+      return ContentService.createTextOutput(JSON.stringify(loginUser(payload)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (payload.action === 'register') {
+      return ContentService.createTextOutput(JSON.stringify(registerUser(payload)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (payload.action === 'reset') {
-      const result = resetAllRankings();
-      return ContentService.createTextOutput(JSON.stringify(result))
+      return ContentService.createTextOutput(JSON.stringify(resetAllRankings()))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -112,9 +148,106 @@ function doPost(e) {
   }
 }
 
-/**
- * Obter ranking consolidado com CacheService
- */
+// ==========================================
+// AUTHENTICATION (LOGIN & REGISTRATION)
+// ==========================================
+
+function registerUser(payload) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const sheet = getOrCreateUsersSheet();
+    const data = sheet.getDataRange().getValues();
+
+    const cleanEmail = String(payload.email || '').trim().toLowerCase();
+    const cleanName = String(payload.name || '').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
+    const cleanOrg = payload.organization ? String(payload.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
+    const password = String(payload.password || '');
+
+    if (!cleanName || !cleanEmail || !password) {
+      return { success: false, error: 'Nome, e-mail e senha são obrigatórios.' };
+    }
+
+    // Check duplicate email
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][2]).toLowerCase() === cleanEmail) {
+        return { success: false, error: 'Este e-mail já está cadastrado. Faça login para continuar.' };
+      }
+    }
+
+    const salt = 'dprj_' + Math.random().toString(36).substring(2, 10);
+    const passHash = hashPasswordGAS(password, salt);
+    const userId = 'usr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    const role = cleanEmail.includes('admin') ? 'admin' : 'participant';
+    const createdAt = new Date().toISOString();
+
+    sheet.appendRow([
+      userId,
+      cleanName,
+      cleanEmail,
+      passHash,
+      salt,
+      cleanOrg,
+      payload.avatar || '👩‍⚖️',
+      role,
+      createdAt
+    ]);
+
+    return {
+      success: true,
+      user: {
+        id: userId,
+        name: cleanName,
+        email: cleanEmail,
+        organization: cleanOrg,
+        avatar: payload.avatar || '👩‍⚖️',
+        role: role,
+        createdAt: createdAt
+      }
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function loginUser(payload) {
+  const sheet = getOrCreateUsersSheet();
+  const data = sheet.getDataRange().getValues();
+
+  const cleanEmail = String(payload.email || '').trim().toLowerCase();
+  const candidatePass = String(payload.password || '');
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (String(row[2]).toLowerCase() === cleanEmail) {
+      const storedHash = String(row[3]);
+      const storedSalt = String(row[4]);
+      const candidateHash = hashPasswordGAS(candidatePass, storedSalt);
+
+      if (candidateHash === storedHash) {
+        return {
+          success: true,
+          user: {
+            id: String(row[0]),
+            name: String(row[1]),
+            email: String(row[2]),
+            organization: String(row[5] || 'Geral'),
+            avatar: String(row[6] || '👩‍⚖️'),
+            role: String(row[7] || 'participant'),
+            createdAt: String(row[8] || new Date().toISOString())
+          }
+        };
+      }
+    }
+  }
+
+  return { success: false, error: 'E-mail ou senha incorretos.' };
+}
+
+// ==========================================
+// RANKINGS & GAME SCORES
+// ==========================================
+
 function getRankings() {
   const cache = CacheService.getScriptCache();
   const cached = cache.get(CACHE_KEY_RANKING);
@@ -124,7 +257,7 @@ function getRankings() {
     } catch (err) {}
   }
 
-  const sheet = getOrCreateSheet();
+  const sheet = getOrCreateRankingSheet();
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) {
     const emptyResult = { success: true, total: 0, rankings: [] };
@@ -145,11 +278,11 @@ function getRankings() {
       correctCount: Number(row[5] || 0),
       totalQuestions: Number(row[6] || 10),
       timeSeconds: Number(row[7] || 0),
-      createdAt: String(row[8] || new Date().toISOString())
+      userId: row[8] ? String(row[8]) : undefined,
+      createdAt: String(row[9] || new Date().toISOString())
     });
   }
 
-  // Ordenação: Maior pontuação DESC -> Menor tempo ASC
   rankings.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     return a.timeSeconds - b.timeSeconds;
@@ -160,16 +293,12 @@ function getRankings() {
   return response;
 }
 
-/**
- * Submeter pontuação com LockService para suporte a 50+ usuários simultâneos
- */
 function submitGameScore(payload) {
   const lock = LockService.getScriptLock();
   try {
-    // Aguarda até 10 segundos para adquirir trava de escrita
     lock.waitLock(10000);
 
-    const cleanName = String(payload.name || 'Participante').replace(/<[^>]*>?/gm, '').trim().substring(0, 40);
+    const cleanName = String(payload.name || 'Participante').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
     const cleanOrg = payload.organization ? String(payload.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
     const numScore = Math.max(0, Math.min(2000, Number(payload.score) || 0));
     const numCorrect = Math.max(0, Math.min(10, Number(payload.correctCount) || 0));
@@ -178,7 +307,7 @@ function submitGameScore(payload) {
     const entryId = 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
     const createdAt = new Date().toISOString();
 
-    const sheet = getOrCreateSheet();
+    const sheet = getOrCreateRankingSheet();
     sheet.appendRow([
       entryId,
       cleanName,
@@ -188,10 +317,10 @@ function submitGameScore(payload) {
       numCorrect,
       numTotal,
       numTime,
+      payload.userId || '',
       createdAt
     ]);
 
-    // Invalida cache
     CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
 
     const rankingsResult = getRankings();
@@ -218,27 +347,78 @@ function submitGameScore(payload) {
   }
 }
 
-/**
- * Resetar ranking e limpar a base de dados
- */
+// ==========================================
+// ADMIN DASHBOARD & CONTROLS
+// ==========================================
+
+function getAdminDashboardData() {
+  const rankingRes = getRankings();
+  const rankings = rankingRes.rankings || [];
+
+  const usersSheet = getOrCreateUsersSheet();
+  const usersData = usersSheet.getDataRange().getValues();
+  const users = [];
+
+  for (let i = 1; i < usersData.length; i++) {
+    const row = usersData[i];
+    if (!row[0]) continue;
+    users.push({
+      id: String(row[0]),
+      name: String(row[1]),
+      email: String(row[2]),
+      organization: String(row[5] || 'Geral'),
+      avatar: String(row[6] || '👩‍⚖️'),
+      role: String(row[7] || 'participant'),
+      createdAt: String(row[8] || new Date().toISOString())
+    });
+  }
+
+  const sumScore = rankings.reduce((acc, curr) => acc + curr.score, 0);
+  const sumTime = rankings.reduce((acc, curr) => acc + curr.timeSeconds, 0);
+  const topScore = rankings.length > 0 ? Math.max(...rankings.map((r) => r.score)) : 0;
+
+  return {
+    totalUsers: users.length,
+    totalMatches: rankings.length,
+    averageScore: rankings.length > 0 ? Math.round(sumScore / rankings.length) : 0,
+    averageTimeSeconds: rankings.length > 0 ? Number((sumTime / rankings.length).toFixed(1)) : 0,
+    topScore: topScore,
+    rankings: rankings,
+    users: users
+  };
+}
+
+function deleteRankingEntry(id) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const sheet = getOrCreateRankingSheet();
+    const data = sheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === String(id)) {
+        sheet.deleteRow(i + 1);
+        CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
+        return { success: true };
+      }
+    }
+    return { success: false, error: 'Registro não encontrado.' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 function resetAllRankings() {
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
-    const sheet = getOrCreateSheet();
+    const sheet = getOrCreateRankingSheet();
     sheet.clearContents();
     sheet.appendRow([
-      'ID',
-      'Nome',
-      'Organizacao',
-      'Avatar',
-      'Pontos',
-      'Acertos',
-      'TotalQuestoes',
-      'TempoSegundos',
-      'DataCriacao'
+      'ID', 'Nome', 'Organizacao', 'Avatar', 'Pontos',
+      'Acertos', 'TotalQuestoes', 'TempoSegundos', 'UserID', 'DataCriacao'
     ]);
-    sheet.getRange(1, 1, 1, 9).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
+    sheet.getRange(1, 1, 1, 10).setFontWeight('bold').setBackground('#004A2F').setFontColor('#FFFFFF');
     sheet.setFrozenRows(1);
     CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
     return { success: true, message: 'Base de dados resetada com sucesso.' };
