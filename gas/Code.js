@@ -165,10 +165,7 @@ function doGet(e) {
   return htmlOutput
     .setTitle('Quiz ECA Digital — Defensoria Pública do RJ')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover')
-    .addMetaTag('mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
 }
 
 function doPost(e) {
