@@ -145,7 +145,24 @@ function doGet(e) {
     })).setMimeType(ContentService.MimeType.JSON);
   }
 
-  return HtmlService.createHtmlOutputFromFile('index')
+  let htmlOutput;
+  try {
+    htmlOutput = HtmlService.createHtmlOutputFromFile('index');
+  } catch (err1) {
+    try {
+      htmlOutput = HtmlService.createHtmlOutputFromFile('index.html');
+    } catch (err2) {
+      return HtmlService.createHtmlOutput(
+        '<div style="font-family:sans-serif;padding:24px;text-align:center;">' +
+        '<h2 style="color:#004A2F;">Quiz ECA Digital — DPRJ</h2>' +
+        '<p style="color:#c00;font-weight:bold;">Arquivo HTML não encontrado no projeto Google Apps Script.</p>' +
+        '<p style="color:#555;font-size:14px;">Certifique-se de que o arquivo HTML no menu lateral esquerdo se chama <code>index</code>.</p>' +
+        '</div>'
+      );
+    }
+  }
+
+  return htmlOutput
     .setTitle('Quiz ECA Digital — Defensoria Pública do RJ')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover')
