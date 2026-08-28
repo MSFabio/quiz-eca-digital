@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
  * Backend Google Apps Script (GAS) com Google Sheets como Banco de Dados
  * Suporte a Autenticação (Login/Senha) e Painel Administrativo de Gestão
@@ -9,30 +9,66 @@ const SHEET_USERS = 'Usuarios';
 const CACHE_KEY_RANKING = 'dprj_quiz_ranking_json';
 const CACHE_TTL_SECONDS = 15;
 
+/**
+ * Função de Inicialização e Autorização
+ * Selecione esta função no menu superior do Google Apps Script e clique em "Executar".
+ * Isso solicitará as permissões necessárias e criará as abas automaticamente.
+ */
+function setup() {
+  const ss = getSpreadsheet();
+  const rankSheet = getOrCreateRankingSheet();
+  const usersSheet = getOrCreateUsersSheet();
+  Logger.log('=======================================================');
+  Logger.log('✅ BASE DE DADOS DPRJ INICIALIZADA COM SUCESSO!');
+  Logger.log('📄 Planilha Google: ' + ss.getUrl());
+  Logger.log('📊 Aba Ranking: ' + rankSheet.getName());
+  Logger.log('👥 Aba Usuários: ' + usersSheet.getName());
+  Logger.log('=======================================================');
+}
+
+/**
+ * Obtém ou cria a Planilha Google para armazenamento de dados
+ */
 function getSpreadsheet() {
-  let ss;
+  let ss = null;
+
+  // 1. Tenta obter a planilha ativa (caso o script tenha sido aberto via Google Sheets > Extensões > Apps Script)
   try {
     ss = SpreadsheetApp.getActiveSpreadsheet();
   } catch (e) {
-    const propId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-    if (propId) {
-      ss = SpreadsheetApp.openById(propId);
-    } else {
-      ss = SpreadsheetApp.create('Quiz ECA Digital - Base de Dados DPRJ');
-      PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
+    ss = null;
+  }
+
+  if (ss) {
+    return ss;
+  }
+
+  // 2. Se for script standalone, verifica se já há um ID de planilha salvo nas propriedades
+  const props = PropertiesService.getScriptProperties();
+  const savedId = props.getProperty('SPREADSHEET_ID');
+
+  if (savedId) {
+    try {
+      ss = SpreadsheetApp.openById(savedId);
+      if (ss) return ss;
+    } catch (err) {
+      Logger.log('Aviso: ID salvo inacessível, gerando nova planilha... ' + err.message);
+      props.deleteProperty('SPREADSHEET_ID');
     }
   }
 
-  if (!ss) {
-    const propId = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-    if (propId) {
-      ss = SpreadsheetApp.openById(propId);
-    } else {
-      ss = SpreadsheetApp.create('Quiz ECA Digital - Base de Dados DPRJ');
-      PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
-    }
+  // 3. Cria uma nova planilha no Google Drive do usuário
+  try {
+    ss = SpreadsheetApp.create('Quiz ECA Digital - Base de Dados DPRJ');
+    props.setProperty('SPREADSHEET_ID', ss.getId());
+    return ss;
+  } catch (err) {
+    throw new Error(
+      'Erro de permissão ao acessar/criar a Planilha Google. ' +
+      'Por favor, selecione a função "setup" no topo do editor e clique em "Executar" para autorizar o acesso ao Google Sheets/Drive. ' +
+      'Detalhes: ' + err.message
+    );
   }
-  return ss;
 }
 
 function getOrCreateRankingSheet() {
@@ -133,7 +169,7 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     if (payload.action === 'reset') {
-      return ContentService.createTextOutput(JSON.stringify(resetAllRankings()))
+      return ContentService.createTextOutput(JSON.stringify(resetAllRankings(payload)))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -168,7 +204,6 @@ function registerUser(payload) {
       return { success: false, error: 'Nome, e-mail e senha são obrigatórios.' };
     }
 
-    // Check duplicate email
     for (let i = 1; i < data.length; i++) {
       if (String(data[i][2]).toLowerCase() === cleanEmail) {
         return { success: false, error: 'Este e-mail já está cadastrado. Faça login para continuar.' };
