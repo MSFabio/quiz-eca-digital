@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
  * Backend Google Apps Script (GAS) com Google Sheets como Banco de Dados
  * Suporte a Autenticação (Login/Senha) e Painel Administrativo de Gestão
@@ -148,7 +148,10 @@ function doGet(e) {
   return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Quiz ECA Digital — Defensoria Pública do RJ')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover')
+    .addMetaTag('mobile-web-app-capable', 'yes')
+    .addMetaTag('apple-mobile-web-app-capable', 'yes')
+    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default');
 }
 
 function doPost(e) {

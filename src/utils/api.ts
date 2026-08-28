@@ -1,4 +1,5 @@
-import { RankingEntry, User, AuthResponse, AdminDashboardData } from '../types';
+﻿import { RankingEntry, User, AuthResponse, AdminDashboardData } from '../types';
+import { safeStorage } from './storage';
 
 const LOCAL_STORAGE_KEY = 'dprj_eca_quiz_rankings';
 const AUTH_STORAGE_KEY = 'dprj_auth_user';
@@ -37,18 +38,65 @@ function isGasEnvironment(): boolean {
   return typeof window !== 'undefined' && !!window.google?.script?.run;
 }
 
+function callGasWithTimeout<T>(methodName: string, arg?: any, timeoutMs = 15000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (!isGasEnvironment()) {
+      return reject(new Error('Ambiente Google Apps Script não detectado.'));
+    }
+
+    let finished = false;
+    const timer = setTimeout(() => {
+      if (!finished) {
+        finished = true;
+        reject(new Error('Tempo limite excedido na conexão. Verifique sua rede.'));
+      }
+    }, timeoutMs);
+
+    try {
+      const runner = window.google!.script!.run
+        .withSuccessHandler((res: any) => {
+          if (!finished) {
+            finished = true;
+            clearTimeout(timer);
+            resolve(res);
+          }
+        })
+        .withFailureHandler((err: any) => {
+          if (!finished) {
+            finished = true;
+            clearTimeout(timer);
+            const msg = (err && typeof err === 'object' && err.message) ? err.message : String(err || 'Erro desconhecido');
+            reject(new Error(msg));
+          }
+        });
+
+      if (arg !== undefined) {
+        (runner as any)[methodName](arg);
+      } else {
+        (runner as any)[methodName]();
+      }
+    } catch (e) {
+      if (!finished) {
+        finished = true;
+        clearTimeout(timer);
+        reject(e);
+      }
+    }
+  });
+}
+
 // ==========================================
-// SESSION MANAGEMENT
+// SESSION MANAGEMENT (Safe for iOS & Android)
 // ==========================================
 
 export function getCurrentUser(): User | null {
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    const raw = safeStorage.getItem(AUTH_STORAGE_KEY);
     if (raw) {
       return JSON.parse(raw);
     }
   } catch (e) {
-    console.warn('Could not read auth user from localStorage', e);
+    console.warn('Could not read auth user from storage', e);
   }
   return null;
 }
@@ -56,12 +104,12 @@ export function getCurrentUser(): User | null {
 export function setCurrentUser(user: User | null): void {
   try {
     if (user) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+      safeStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
+      safeStorage.removeItem(AUTH_STORAGE_KEY);
     }
   } catch (e) {
-    console.warn('Could not save auth user to localStorage', e);
+    console.warn('Could not save auth user to storage', e);
   }
 }
 
@@ -77,12 +125,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
   // 1. Google Apps Script native environment
   if (isGasEnvironment()) {
     try {
-      const res = await new Promise<AuthResponse>((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .loginUser({ email, password });
-      });
+      const res = await callGasWithTimeout<AuthResponse>('loginUser', { email, password });
       if (res && res.success && res.user) {
         setCurrentUser(res.user);
       }
@@ -134,12 +177,7 @@ export async function registerUser(payload: {
   // 1. Google Apps Script native environment
   if (isGasEnvironment()) {
     try {
-      const res = await new Promise<AuthResponse>((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .registerUser(payload);
-      });
+      const res = await callGasWithTimeout<AuthResponse>('registerUser', payload);
       if (res && res.success && res.user) {
         setCurrentUser(res.user);
       }
@@ -173,7 +211,7 @@ export async function registerUser(payload: {
 
 function getLocalRankings(): RankingEntry[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = safeStorage.getItem(LOCAL_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -181,28 +219,23 @@ function getLocalRankings(): RankingEntry[] {
       }
     }
   } catch (e) {
-    console.warn('Could not read rankings from localStorage', e);
+    console.warn('Could not read rankings from storage', e);
   }
   return [];
 }
 
 function saveLocalRankings(data: RankingEntry[]) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    safeStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
   } catch (e) {
-    console.warn('Could not save rankings to localStorage', e);
+    console.warn('Could not save rankings to storage', e);
   }
 }
 
 export async function fetchRankings(): Promise<RankingEntry[]> {
   if (isGasEnvironment()) {
     try {
-      const data = await new Promise<{ success: boolean; total: number; rankings: RankingEntry[] }>((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getRankings();
-      });
+      const data = await callGasWithTimeout<{ success: boolean; total: number; rankings: RankingEntry[] }>('getRankings');
       if (data && Array.isArray(data.rankings)) {
         saveLocalRankings(data.rankings);
         return data.rankings;
@@ -241,12 +274,7 @@ export async function submitGameScore(payload: {
 }): Promise<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }> {
   if (isGasEnvironment()) {
     try {
-      const res = await new Promise<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }>((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .submitGameScore(payload);
-      });
+      const res = await callGasWithTimeout<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }>('submitGameScore', payload);
       if (res && res.success) {
         return res;
       }
@@ -310,12 +338,7 @@ export async function resetAllRankings(options?: { clearUsers?: boolean }): Prom
 
   if (isGasEnvironment()) {
     try {
-      await new Promise((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .resetAllRankings({ clearUsers });
-      });
+      await callGasWithTimeout('resetAllRankings', { clearUsers });
     } catch (err) {
       console.warn('GAS resetAllRankings error', err);
     }
@@ -328,9 +351,9 @@ export async function resetAllRankings(options?: { clearUsers?: boolean }): Prom
   }
 
   try {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    safeStorage.removeItem(LOCAL_STORAGE_KEY);
   } catch (e) {
-    console.warn('Could not remove localStorage key', e);
+    console.warn('Could not remove storage key', e);
   }
   saveLocalRankings([]);
 
@@ -350,12 +373,7 @@ export async function resetAllRankings(options?: { clearUsers?: boolean }): Prom
 export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
   if (isGasEnvironment()) {
     try {
-      const res = await new Promise<AdminDashboardData>((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getAdminDashboardData();
-      });
+      const res = await callGasWithTimeout<AdminDashboardData>('getAdminDashboardData');
       if (res) return res;
     } catch (err) {
       console.warn('GAS fetchAdminDashboard error', err);
@@ -390,12 +408,7 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
 export async function deleteRankingEntry(id: string): Promise<boolean> {
   if (isGasEnvironment()) {
     try {
-      await new Promise((resolve, reject) => {
-        window.google!.script!.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .deleteRankingEntry(id);
-      });
+      await callGasWithTimeout('deleteRankingEntry', id);
       return true;
     } catch (err) {
       console.warn('GAS deleteRankingEntry error', err);
@@ -423,4 +436,3 @@ export async function deleteUserAccount(id: string): Promise<boolean> {
     return false;
   }
 }
-

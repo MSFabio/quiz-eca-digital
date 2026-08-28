@@ -1,4 +1,4 @@
-﻿import { useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { ShieldCheck, Lock, Mail, User as UserIcon, Building, Eye, EyeOff, LogIn, UserPlus, Sparkles, HelpCircle, Clock, Trophy } from 'lucide-react';
 import { User } from '../types';
 import { loginUser, registerUser } from '../utils/api';
@@ -223,7 +223,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="seu.email@exemplo.com"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                     required
                   />
                 </div>
@@ -241,7 +241,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Digite sua senha"
-                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                     required
                   />
                   <button
@@ -296,7 +296,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     onChange={(e) => setRegName(e.target.value)}
                     placeholder="Ex: Ana Silva ou Lucas"
                     maxLength={40}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                     required
                   />
                 </div>
@@ -314,7 +314,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="seu.email@exemplo.com"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                     required
                   />
                 </div>
@@ -332,7 +332,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Crie uma senha (mínimo 4 caracteres)"
-                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                     required
                   />
                   <button
@@ -358,7 +358,7 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
                     onChange={(e) => setRegOrg(e.target.value)}
                     placeholder="Ex: Colégio Estadual, Defensoria, UERJ..."
                     maxLength={50}
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-sm outline-none transition"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#004A2F] focus:ring-2 focus:ring-[#004A2F]/20 text-gray-900 text-base sm:text-sm outline-none transition touch-manipulation"
                   />
                 </div>
               </div>

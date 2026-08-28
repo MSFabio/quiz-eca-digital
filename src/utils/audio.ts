@@ -1,32 +1,69 @@
-// Audio effects generator using Web Audio API
+﻿// Audio effects generator using Web Audio API with Mobile (iOS Safari & Android) resilience
+import { safeStorage } from './storage';
 
 class SoundManager {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private isUnlocked: boolean = false;
 
   constructor() {
-    // Check if user preferred muted before
-    const saved = localStorage.getItem('dprj_quiz_muted');
+    // Check if user preferred muted before (using safeStorage)
+    const saved = safeStorage.getItem('dprj_quiz_muted');
     if (saved !== null) {
       this.isMuted = saved === 'true';
+    }
+
+    // Auto-attach touch listener to unlock iOS Safari Web Audio on first tap
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        this.unlock();
+        window.removeEventListener('touchstart', unlockAudio, true);
+        window.removeEventListener('touchend', unlockAudio, true);
+        window.removeEventListener('click', unlockAudio, true);
+      };
+      window.addEventListener('touchstart', unlockAudio, true);
+      window.addEventListener('touchend', unlockAudio, true);
+      window.addEventListener('click', unlockAudio, true);
+    }
+  }
+
+  public unlock() {
+    if (this.isUnlocked) return;
+    try {
+      this.initCtx();
+      if (this.ctx) {
+        // Play silent buffer to unlock iOS AudioContext
+        const buffer = this.ctx.createBuffer(1, 1, 22050);
+        const source = this.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(this.ctx.destination);
+        source.start(0);
+        this.isUnlocked = true;
+      }
+    } catch (e) {
+      // Ignore unlock failure
     }
   }
 
   private initCtx() {
-    if (!this.ctx) {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioContextClass) {
-        this.ctx = new AudioContextClass();
+    try {
+      if (!this.ctx && typeof window !== 'undefined') {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioContextClass) {
+          this.ctx = new AudioContextClass();
+        }
       }
-    }
-    if (this.ctx && this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch (e) {
+      // Fallback
     }
   }
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
-    localStorage.setItem('dprj_quiz_muted', String(this.isMuted));
+    safeStorage.setItem('dprj_quiz_muted', String(this.isMuted));
     return this.isMuted;
   }
 
@@ -151,7 +188,6 @@ class SoundManager {
       if (!this.ctx) return;
 
       const now = this.ctx.currentTime;
-      // Fanfare: C4, E4, G4, C5, G4, C5 (triumphant)
       const sequence = [
         { f: 523.25, d: 0.15, t: 0 },
         { f: 523.25, d: 0.15, t: 0.15 },

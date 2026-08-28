@@ -96,7 +96,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7F5] text-gray-900 flex flex-col font-sans selection:bg-[#004A2F]/20 selection:text-[#004A2F]">
+    <div className="min-h-screen min-h-[100dvh] bg-[#F4F7F5] text-gray-900 flex flex-col font-sans selection:bg-[#004A2F]/20 selection:text-[#004A2F]">
       {/* DPRJ Header */}
       <Header
         currentScreen={currentScreen}
