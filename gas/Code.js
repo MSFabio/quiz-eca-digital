@@ -205,17 +205,30 @@ function doPost(e) {
 // AUTHENTICATION (LOGIN & REGISTRATION)
 // ==========================================
 
+function parsePayload(payload) {
+  if (!payload) return {};
+  if (typeof payload === 'string') {
+    try {
+      return JSON.parse(payload);
+    } catch (e) {
+      return {};
+    }
+  }
+  return payload;
+}
+
 function registerUser(payload) {
+  const p = parsePayload(payload);
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
     const sheet = getOrCreateUsersSheet();
     const data = sheet.getDataRange().getValues();
 
-    const cleanEmail = String(payload.email || '').trim().toLowerCase();
-    const cleanName = String(payload.name || '').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
-    const cleanOrg = payload.organization ? String(payload.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
-    const password = String(payload.password || '');
+    const cleanEmail = String(p.email || '').trim().toLowerCase();
+    const cleanName = String(p.name || '').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
+    const cleanOrg = p.organization ? String(p.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
+    const password = String(p.password || '');
 
     if (!cleanName || !cleanEmail || !password) {
       return { success: false, error: 'Nome, e-mail e senha são obrigatórios.' };
@@ -240,7 +253,7 @@ function registerUser(payload) {
       passHash,
       salt,
       cleanOrg,
-      payload.avatar || '👩‍⚖️',
+      p.avatar || '👩‍⚖️',
       role,
       createdAt
     ]);
@@ -252,7 +265,7 @@ function registerUser(payload) {
         name: cleanName,
         email: cleanEmail,
         organization: cleanOrg,
-        avatar: payload.avatar || '👩‍⚖️',
+        avatar: p.avatar || '👩‍⚖️',
         role: role,
         createdAt: createdAt
       }
@@ -263,11 +276,16 @@ function registerUser(payload) {
 }
 
 function loginUser(payload) {
+  const p = parsePayload(payload);
   const sheet = getOrCreateUsersSheet();
   const data = sheet.getDataRange().getValues();
 
-  const cleanEmail = String(payload.email || '').trim().toLowerCase();
-  const candidatePass = String(payload.password || '');
+  const cleanEmail = String(p.email || '').trim().toLowerCase();
+  const candidatePass = String(p.password || '');
+
+  if (!cleanEmail || !candidatePass) {
+    return { success: false, error: 'E-mail e senha são obrigatórios.' };
+  }
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -346,16 +364,17 @@ function getRankings() {
 }
 
 function submitGameScore(payload) {
+  const p = parsePayload(payload);
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(10000);
 
-    const cleanName = String(payload.name || 'Participante').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
-    const cleanOrg = payload.organization ? String(payload.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
-    const numScore = Math.max(0, Math.min(2000, Number(payload.score) || 0));
-    const numCorrect = Math.max(0, Math.min(10, Number(payload.correctCount) || 0));
-    const numTotal = Math.max(1, Math.min(50, Number(payload.totalQuestions) || 10));
-    const numTime = Math.max(0.1, Number(payload.timeSeconds) || 0);
+    const cleanName = String(p.name || 'Participante').replace(/<[^>]*>?/gm, '').trim().substring(0, 50);
+    const cleanOrg = p.organization ? String(p.organization).replace(/<[^>]*>?/gm, '').trim().substring(0, 50) : 'Geral';
+    const numScore = Math.max(0, Math.min(2000, Number(p.score) || 0));
+    const numCorrect = Math.max(0, Math.min(10, Number(p.correctCount) || 0));
+    const numTotal = Math.max(1, Math.min(50, Number(p.totalQuestions) || 10));
+    const numTime = Math.max(0.1, Number(p.timeSeconds) || 0);
     const entryId = 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
     const createdAt = new Date().toISOString();
 
@@ -364,12 +383,12 @@ function submitGameScore(payload) {
       entryId,
       cleanName,
       cleanOrg,
-      payload.avatar || '⭐',
+      p.avatar || '⭐',
       numScore,
       numCorrect,
       numTotal,
       numTime,
-      payload.userId || '',
+      p.userId || '',
       createdAt
     ]);
 
@@ -384,7 +403,7 @@ function submitGameScore(payload) {
         id: entryId,
         name: cleanName,
         organization: cleanOrg,
-        avatar: payload.avatar || '⭐',
+        avatar: p.avatar || '⭐',
         score: numScore,
         correctCount: numCorrect,
         totalQuestions: numTotal,
