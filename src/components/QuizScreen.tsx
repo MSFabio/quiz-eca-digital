@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Clock, Award, CheckCircle2, XCircle, ArrowRight, BookOpen, AlertCircle } from 'lucide-react';
+﻿import { useState, useEffect, useRef } from 'react';
+import { Clock, Award, CheckCircle2, XCircle, ArrowRight, AlertCircle, RotateCcw } from 'lucide-react';
 import { Question, UserAnswer, UserProfile, GameResult } from '../types';
 import { QUIZ_QUESTIONS } from '../data/questions';
 import { soundManager } from '../utils/audio';
+import { safeStorage } from '../utils/storage';
+import { submitGameScore } from '../utils/api';
 
 interface QuizScreenProps {
   userProfile: UserProfile;
@@ -15,41 +17,70 @@ export default function QuizScreen({
   onFinishQuiz,
   onQuit,
 }: QuizScreenProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | null>(null);
-  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState(false);
-  const [totalScore, setTotalScore] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
-  
+  const sessionKey = `dprj_quiz_session_${userProfile.id || userProfile.name}`;
+
+  // Restore existing in-progress session if user previously answered questions
+  const savedState = (() => {
+    try {
+      const raw = safeStorage.getItem(sessionKey);
+      if (raw) return JSON.parse(raw);
+    } catch {
+      // ignore
+    }
+    return null;
+  })();
+
+  const [currentIndex, setCurrentIndex] = useState<number>(savedState?.currentIndex ?? 0);
+  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | null>(savedState?.selectedOption ?? null);
+  const [isAnswerSubmitted, setIsAnswerSubmitted] = useState<boolean>(savedState?.isAnswerSubmitted ?? false);
+  const [totalScore, setTotalScore] = useState<number>(savedState?.totalScore ?? 0);
+  const [lastEarnedPoints, setLastEarnedPoints] = useState<number>(savedState?.lastEarnedPoints ?? 0);
+  const [userAnswers, setUserAnswers] = useState<UserAnswer[]>(savedState?.userAnswers ?? []);
+
   // Timers
+  const [gameStartTime] = useState<number>(savedState?.gameStartTime ?? Date.now());
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
-  const [gameStartTime] = useState<number>(Date.now());
-  const [questionElapsed, setQuestionElapsed] = useState<number>(0);
   const [totalElapsed, setTotalElapsed] = useState<number>(0);
 
-  const currentQuestion: Question = QUIZ_QUESTIONS[currentIndex] || QUIZ_QUESTIONS[0];
   const totalQuestions = QUIZ_QUESTIONS.length;
+  const currentQuestion: Question = QUIZ_QUESTIONS[currentIndex] || QUIZ_QUESTIONS[0];
 
-  // Interval timer for real-time stopwatch & bonus calculation
+  // Stopwatch interval
   useEffect(() => {
     const timer = setInterval(() => {
-      const now = Date.now();
-      setTotalElapsed((now - gameStartTime) / 1000);
-      if (!isAnswerSubmitted) {
-        setQuestionElapsed((now - questionStartTime) / 1000);
-      }
-    }, 100);
-
+      setTotalElapsed((Date.now() - gameStartTime) / 1000);
+    }, 200);
     return () => clearInterval(timer);
-  }, [gameStartTime, questionStartTime, isAnswerSubmitted]);
+  }, [gameStartTime]);
 
-  // Reset question timer on question change
+  // Persist session state whenever question or score changes
   useEffect(() => {
-    setQuestionStartTime(Date.now());
-    setQuestionElapsed(0);
+    try {
+      safeStorage.setItem(
+        sessionKey,
+        JSON.stringify({
+          currentIndex,
+          selectedOption,
+          isAnswerSubmitted,
+          totalScore,
+          lastEarnedPoints,
+          userAnswers,
+          gameStartTime,
+        })
+      );
+    } catch (err) {
+      console.warn('Could not save quiz session:', err);
+    }
+  }, [currentIndex, selectedOption, isAnswerSubmitted, totalScore, lastEarnedPoints, userAnswers, gameStartTime, sessionKey]);
+
+  // Reset per-question state when moving forward
+  const handleResetForNextQuestion = (nextIndex: number) => {
+    setCurrentIndex(nextIndex);
     setSelectedOption(null);
     setIsAnswerSubmitted(false);
-  }, [currentIndex]);
+    setLastEarnedPoints(0);
+    setQuestionStartTime(Date.now());
+  };
 
   const handleSelectOption = (optionKey: 'A' | 'B' | 'C' | 'D') => {
     if (isAnswerSubmitted) return;
@@ -73,6 +104,10 @@ export default function QuizScreen({
       soundManager.playWrong();
     }
 
+    setLastEarnedPoints(points);
+    const newTotalScore = totalScore + points;
+    setTotalScore(newTotalScore);
+
     const answerRecord: UserAnswer = {
       questionId: currentQuestion.id,
       selectedOption: optionKey,
@@ -81,16 +116,31 @@ export default function QuizScreen({
       pointsEarned: points,
     };
 
-    setUserAnswers((prev) => [...prev, answerRecord]);
-    setTotalScore((prev) => prev + points);
+    const updatedAnswers = [...userAnswers, answerRecord];
+    setUserAnswers(updatedAnswers);
+
+    // Live update to server ranking in background (so participant immediately appears with live points)
+    const correctCount = updatedAnswers.filter((a) => a.isCorrect).length;
+    const currentTotalTime = (Date.now() - gameStartTime) / 1000;
+    submitGameScore({
+      name: userProfile.name,
+      organization: userProfile.organization,
+      avatar: userProfile.avatar,
+      score: newTotalScore,
+      correctCount,
+      totalQuestions,
+      timeSeconds: Number(currentTotalTime.toFixed(1)),
+      userId: userProfile.id,
+    }).catch(() => {});
   };
 
   const handleNextQuestion = () => {
     soundManager.playClick();
     if (currentIndex + 1 < totalQuestions) {
-      setCurrentIndex((prev) => prev + 1);
+      handleResetForNextQuestion(currentIndex + 1);
     } else {
-      // Quiz Completed
+      // Quiz Completed: Clean up session and trigger finish
+      safeStorage.removeItem(sessionKey);
       const finalTotalTime = (Date.now() - gameStartTime) / 1000;
       const correctAnswersCount = userAnswers.filter((a) => a.isCorrect).length;
 
@@ -111,12 +161,17 @@ export default function QuizScreen({
     }
   };
 
-  // Format time helper (mm:ss.s)
+  const handleQuitQuiz = () => {
+    soundManager.playClick();
+    safeStorage.removeItem(sessionKey);
+    onQuit();
+  };
+
+  // Format time helper (mm:ss)
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    const tenths = Math.floor((seconds % 1) * 10);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${tenths}`;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const progressPercent = ((currentIndex + (isAnswerSubmitted ? 1 : 0)) / totalQuestions) * 100;
@@ -140,13 +195,12 @@ export default function QuizScreen({
                   Questão {currentIndex + 1} de {totalQuestions}
                 </span>
               </div>
-              <span className="text-xs text-gray-500 truncate block max-w-[200px]">
-                {userProfile.organization}
-              </span>
+              <p className="text-xs text-gray-500">
+                {userProfile.organization || 'Defensoria Pública do RJ'}
+              </p>
             </div>
           </div>
 
-          {/* Score & Stopwatch */}
           <div className="flex items-center gap-2 sm:gap-4">
             {/* Live Stopwatch */}
             <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-mono font-bold text-gray-700">
@@ -194,7 +248,7 @@ export default function QuizScreen({
           {currentQuestion.options.map((opt) => {
             const isSelected = selectedOption === opt.id;
             const isCorrectAnswer = opt.id === currentQuestion.correctAnswer;
-            
+
             let btnStyle = 'border-gray-200 hover:border-[#004A2F]/40 hover:bg-emerald-50/40 bg-white text-gray-800';
             let badgeStyle = 'bg-gray-100 text-gray-700 border-gray-300';
 
@@ -214,10 +268,11 @@ export default function QuizScreen({
             return (
               <button
                 key={opt.id}
+                type="button"
                 id={`btn-option-${opt.id}`}
                 disabled={isAnswerSubmitted}
                 onClick={() => handleSelectOption(opt.id)}
-                className={`w-full p-4 rounded-xl border-2 text-left flex items-start gap-3.5 sm:gap-4 transition duration-150 transform active:scale-[0.99] cursor-pointer ${btnStyle}`}
+                className={`w-full p-4 rounded-xl border-2 text-left flex items-start gap-3.5 sm:gap-4 transition duration-150 transform active:scale-[0.99] cursor-pointer touch-manipulation ${btnStyle}`}
               >
                 {/* Option Letter Badge */}
                 <span
@@ -227,7 +282,7 @@ export default function QuizScreen({
                 </span>
 
                 {/* Option Text */}
-                <span className="text-xs sm:text-base leading-relaxed pt-0.5 flex-1">
+                <span className="text-sm sm:text-base leading-relaxed pt-0.5 flex-1">
                   {opt.text}
                 </span>
 
@@ -257,7 +312,7 @@ export default function QuizScreen({
                 {selectedOption === currentQuestion.correctAnswer ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-[#004A2F]" />
-                    <span>Resposta Correta! (+{userAnswers[userAnswers.length - 1]?.pointsEarned} pts)</span>
+                    <span>Resposta Correta! (+{lastEarnedPoints} pts)</span>
                   </>
                 ) : (
                   <>
@@ -276,7 +331,7 @@ export default function QuizScreen({
             <div className="mt-5 flex items-center justify-between">
               <button
                 type="button"
-                onClick={onQuit}
+                onClick={handleQuitQuiz}
                 className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 font-medium px-3 py-2 cursor-pointer"
               >
                 Encerrar Quiz
@@ -286,7 +341,7 @@ export default function QuizScreen({
                 id="btn-next-question"
                 type="button"
                 onClick={handleNextQuestion}
-                className="py-3 px-6 rounded-xl bg-[#004A2F] hover:bg-[#003823] active:bg-[#002619] text-white font-bold text-sm sm:text-base flex items-center gap-2 shadow-md shadow-emerald-950/20 transition cursor-pointer"
+                className="py-3 px-6 rounded-xl bg-[#004A2F] hover:bg-[#003823] active:bg-[#002619] text-white font-bold text-sm sm:text-base flex items-center gap-2 shadow-md shadow-emerald-950/20 transition cursor-pointer touch-manipulation"
               >
                 <span>
                   {currentIndex + 1 === totalQuestions ? 'Ver Resultado Final' : 'Próxima Questão'}

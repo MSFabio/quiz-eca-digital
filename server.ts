@@ -225,6 +225,24 @@ async function startServer() {
     usersList.push(newUser);
     saveUsers(usersList);
 
+    // Initialize participant in ranking table immediately upon registration
+    if (newUser.role === 'participant') {
+      const initialRanking: RankingEntry = {
+        id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        name: cleanName,
+        organization: cleanOrg,
+        avatar: avatar || '👩‍⚖️',
+        score: 0,
+        correctCount: 0,
+        totalQuestions: 10,
+        timeSeconds: 0,
+        userId: newUser.id,
+        createdAt: new Date().toISOString(),
+      };
+      rankingList.push(initialRanking);
+      saveRankings(rankingList);
+    }
+
     const safeUser = sanitizeSafeUser(newUser);
     res.status(201).json({
       success: true,
@@ -251,6 +269,26 @@ async function startServer() {
     const candidateHash = hashPassword(String(password), user.salt);
     if (candidateHash !== user.passwordHash) {
       return res.status(401).json({ success: false, error: 'E-mail ou senha incorretos.' });
+    }
+
+    // Ensure participant is present in ranking
+    if (user.role === 'participant') {
+      const hasRanking = rankingList.some((r) => r.userId === user.id);
+      if (!hasRanking) {
+        rankingList.push({
+          id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+          name: user.name,
+          organization: user.organization || 'Geral',
+          avatar: user.avatar || '👩‍⚖️',
+          score: 0,
+          correctCount: 0,
+          totalQuestions: 10,
+          timeSeconds: 0,
+          userId: user.id,
+          createdAt: new Date().toISOString(),
+        });
+        saveRankings(rankingList);
+      }
     }
 
     const safeUser = sanitizeSafeUser(user);
@@ -309,20 +347,34 @@ async function startServer() {
     const numTotal = Math.max(1, Math.min(50, Number(totalQuestions) || 10));
     const numTime = Math.max(0.1, Number(timeSeconds) || 0);
 
-    const newEntry: RankingEntry = {
-      id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-      name: cleanName || 'Participante',
-      organization: cleanOrg,
-      avatar: avatar || '⭐',
-      score: numScore,
-      correctCount: numCorrect,
-      totalQuestions: numTotal,
-      timeSeconds: numTime,
-      userId: userId ? String(userId) : undefined,
-      createdAt: new Date().toISOString(),
-    };
+    let targetEntry: RankingEntry;
+    const existingIndex = userId ? rankingList.findIndex((r) => r.userId === String(userId)) : -1;
 
-    rankingList.push(newEntry);
+    if (existingIndex !== -1) {
+      targetEntry = rankingList[existingIndex];
+      targetEntry.name = cleanName || targetEntry.name;
+      targetEntry.organization = cleanOrg || targetEntry.organization;
+      targetEntry.avatar = avatar || targetEntry.avatar;
+      targetEntry.score = numScore;
+      targetEntry.correctCount = numCorrect;
+      targetEntry.totalQuestions = numTotal;
+      targetEntry.timeSeconds = numTime;
+    } else {
+      targetEntry = {
+        id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        name: cleanName || 'Participante',
+        organization: cleanOrg,
+        avatar: avatar || '⭐',
+        score: numScore,
+        correctCount: numCorrect,
+        totalQuestions: numTotal,
+        timeSeconds: numTime,
+        userId: userId ? String(userId) : undefined,
+        createdAt: new Date().toISOString(),
+      };
+      rankingList.push(targetEntry);
+    }
+
     saveRankings(rankingList);
 
     // Calculate current position
@@ -331,11 +383,11 @@ async function startServer() {
       return a.timeSeconds - b.timeSeconds;
     });
 
-    const rankPosition = sorted.findIndex((e) => e.id === newEntry.id) + 1;
+    const rankPosition = sorted.findIndex((e) => e.id === targetEntry.id) + 1;
 
     res.status(201).json({
       success: true,
-      entry: newEntry,
+      entry: targetEntry,
       rankPosition,
       totalParticipants: sorted.length,
     });
@@ -429,7 +481,7 @@ async function startServer() {
   });
 
   // Vite middleware for development vs Production static serving
-  const isProduction = process.env.NODE_ENV === 'production' || __dirname.includes('dist') || !process.argv[1]?.endsWith('server.ts');
+  const isProduction = process.env.NODE_ENV === 'production' || !process.argv[1]?.endsWith('server.ts');
   if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },

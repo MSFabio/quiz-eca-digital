@@ -258,6 +258,24 @@ function registerUser(payload) {
       createdAt
     ]);
 
+    // Initialize in ranking sheet immediately
+    if (role === 'participant') {
+      const rankSheet = getOrCreateRankingSheet();
+      rankSheet.appendRow([
+        'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        cleanName,
+        cleanOrg,
+        p.avatar || '👩‍⚖️',
+        0,
+        0,
+        10,
+        0,
+        userId,
+        createdAt
+      ]);
+      CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
+    }
+
     return {
       success: true,
       user: {
@@ -375,22 +393,47 @@ function submitGameScore(payload) {
     const numCorrect = Math.max(0, Math.min(10, Number(p.correctCount) || 0));
     const numTotal = Math.max(1, Math.min(50, Number(p.totalQuestions) || 10));
     const numTime = Math.max(0.1, Number(p.timeSeconds) || 0);
-    const entryId = 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
     const createdAt = new Date().toISOString();
 
     const sheet = getOrCreateRankingSheet();
-    sheet.appendRow([
-      entryId,
-      cleanName,
-      cleanOrg,
-      p.avatar || '⭐',
-      numScore,
-      numCorrect,
-      numTotal,
-      numTime,
-      p.userId || '',
-      createdAt
-    ]);
+    const data = sheet.getDataRange().getValues();
+    let entryId = 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+    let rowIndex = -1;
+
+    if (p.userId) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][8]) === String(p.userId)) {
+          rowIndex = i + 1;
+          entryId = String(data[i][0]);
+          break;
+        }
+      }
+    }
+
+    if (rowIndex !== -1) {
+      sheet.getRange(rowIndex, 2, 1, 7).setValues([[
+        cleanName,
+        cleanOrg,
+        p.avatar || '⭐',
+        numScore,
+        numCorrect,
+        numTotal,
+        numTime
+      ]]);
+    } else {
+      sheet.appendRow([
+        entryId,
+        cleanName,
+        cleanOrg,
+        p.avatar || '⭐',
+        numScore,
+        numCorrect,
+        numTotal,
+        numTime,
+        p.userId || '',
+        createdAt
+      ]);
+    }
 
     CacheService.getScriptCache().remove(CACHE_KEY_RANKING);
 

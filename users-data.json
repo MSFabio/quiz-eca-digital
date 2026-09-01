@@ -9,5 +9,16 @@
     "avatar": "🛡️",
     "role": "admin",
     "createdAt": "2026-08-27T19:09:45.602Z"
+  },
+  {
+    "id": "usr-1788280887209-r74h3",
+    "name": "Aluno Teste Ao Vivo",
+    "email": "aluno_1788280887095@escola.com",
+    "passwordHash": "75bb42dea65e5ca9adf46611696011a1b4faff4c52cf2f9ccab0f754ec95d710",
+    "salt": "3d99f112e572ad89d1ecf0596e094d6c",
+    "organization": "Colégio Estadual DPRJ",
+    "avatar": "👩‍🎓",
+    "role": "participant",
+    "createdAt": "2026-09-01T16:41:27.210Z"
   }
 ]

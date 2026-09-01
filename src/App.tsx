@@ -6,6 +6,7 @@ import ResultScreen from './components/ResultScreen';
 import RankingScreen from './components/RankingScreen';
 import AdminDashboardScreen from './components/AdminDashboardScreen';
 import QuestionReviewModal from './components/QuestionReviewModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ScreenState, User, GameResult } from './types';
 import { submitGameScore, getCurrentUser, logoutUser } from './utils/api';
 import { soundManager } from './utils/audio';
@@ -111,47 +112,60 @@ export default function App() {
 
       {/* Main Screen Container */}
       <main className="flex-1 flex flex-col justify-start">
-        {/* 1. Auth Screen (Login / Register) */}
-        {currentScreen === 'auth' && (
-          <AuthScreen
-            onAuthSuccess={handleAuthSuccess}
-            onViewRanking={handleViewRanking}
-          />
-        )}
+        <ErrorBoundary onReset={() => setCurrentScreen(currentUser ? 'quiz' : 'auth')}>
+          {/* 1. Auth Screen (Login / Register) */}
+          {(currentScreen === 'auth' || (currentScreen === 'quiz' && !currentUser)) && (
+            <AuthScreen
+              onAuthSuccess={handleAuthSuccess}
+              onViewRanking={handleViewRanking}
+            />
+          )}
 
-        {/* 2. Admin Dashboard */}
-        {currentScreen === 'admin' && currentUser?.role === 'admin' && (
-          <AdminDashboardScreen
-            onBackToApp={() => setCurrentScreen('quiz')}
-          />
-        )}
+          {/* 2. Admin Dashboard */}
+          {currentScreen === 'admin' && currentUser?.role === 'admin' && (
+            <AdminDashboardScreen
+              onBackToApp={() => setCurrentScreen('quiz')}
+            />
+          )}
 
-        {/* 3. Quiz Screen */}
-        {currentScreen === 'quiz' && currentUser && (
-          <QuizScreen
-            userProfile={currentUser}
-            onFinishQuiz={handleFinishQuiz}
-            onQuit={() => setCurrentScreen(currentUser.role === 'admin' ? 'admin' : 'auth')}
-          />
-        )}
+          {/* 3. Quiz Screen */}
+          {currentScreen === 'quiz' && currentUser && (
+            <QuizScreen
+              userProfile={currentUser}
+              onFinishQuiz={handleFinishQuiz}
+              onQuit={() => setCurrentScreen(currentUser.role === 'admin' ? 'admin' : 'auth')}
+            />
+          )}
 
-        {/* 4. Result Screen */}
-        {currentScreen === 'result' && lastGameResult && (
-          <ResultScreen
-            result={lastGameResult}
-            onPlayAgain={handlePlayAgain}
-            onViewRanking={handleViewRanking}
-            onOpenReview={() => setShowReviewModal(true)}
-          />
-        )}
+          {/* 4. Result Screen */}
+          {currentScreen === 'result' && (
+            <ResultScreen
+              result={lastGameResult || {
+                id: 'res-fallback',
+                userName: currentUser?.name || 'Participante',
+                organization: currentUser?.organization || 'Geral',
+                avatar: currentUser?.avatar || '⭐',
+                score: 0,
+                correctCount: 0,
+                totalQuestions: 10,
+                totalTimeSeconds: 0,
+                answers: [],
+                createdAt: new Date().toISOString(),
+              }}
+              onPlayAgain={handlePlayAgain}
+              onViewRanking={handleViewRanking}
+              onOpenReview={() => setShowReviewModal(true)}
+            />
+          )}
 
-        {/* 5. Live Ranking Screen */}
-        {currentScreen === 'ranking' && (
-          <RankingScreen
-            onBackToHome={() => setCurrentScreen(currentUser ? (currentUser.role === 'admin' ? 'admin' : 'quiz') : 'auth')}
-            highlightEntryId={highlightRankingId}
-          />
-        )}
+          {/* 5. Live Ranking Screen */}
+          {currentScreen === 'ranking' && (
+            <RankingScreen
+              onBackToHome={() => setCurrentScreen(currentUser ? (currentUser.role === 'admin' ? 'admin' : 'quiz') : 'auth')}
+              highlightEntryId={highlightRankingId}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Question Review Modal */}
