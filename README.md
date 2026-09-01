@@ -1,4 +1,4 @@
-﻿# ⚖️ Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
+# ⚖️ Quiz ECA Digital — Defensoria Pública do Estado do Rio de Janeiro (DPRJ)
 
 Aplicação web interativa gamificada desenvolvida para eventos, ações educativas e feiras institucionais da **Defensoria Pública do Estado do Rio de Janeiro (DPRJ)**, com foco na conscientização sobre os direitos de crianças e adolescentes no ambiente digital (**ECA Digital**, LGPD e proteção integral).
 
@@ -12,6 +12,7 @@ Possui controle de acesso obrigatório (cadastro e login com senha criptografada
 - [Painel Administrativo do Organizador (Admin DPRJ)](#-painel-administrativo-do-organizador-admin-dprj)
 - [Jornada do Usuário e Fluxo](#-jornada-do-usuário-e-fluxo)
 - [Garantia de Qualidade e Teste de Concorrência (50+ Usuários)](#-garantia-de-qualidade-e-teste-de-concorrência-50-usuários)
+- [Deploy no Render (Cloud 24/7 - Guia Passo a Passo)](#-deploy-no-render-cloud-247---guia-passo-a-passo)
 - [Deploy no Google Apps Script (Guia Passo a Passo)](#-deploy-no-google-apps-script-guia-passo-a-passo)
 - [Como Executar Localmente](#-como-executar-localmente)
 - [Como Executar os Testes Automatizados](#-como-executar-os-testes-automatizados)
@@ -94,7 +95,59 @@ graph TD
 
 ---
 
-## 📑 Deploy no Google Apps Script (Guia Passo a Passo)
+## 🚀 Deploy no Render (Cloud 24/7 - Guia Passo a Passo)
+
+O **Render** ([render.com](https://render.com)) é uma plataforma de nuvem moderna e robusta, ideal para hospedar o Quiz ECA Digital com alta disponibilidade, HTTPS gratuito automático, latência ultrabaixa e suporte nativo a celulares (**Android Chrome** e **iPhone Safari/Chrome**).
+
+### 🛠️ Configurações Automáticas do Repositório:
+- **Blueprint Pronto:** O arquivo [`render.yaml`](./render.yaml) já está configurado na raiz do repositório.
+- **Dockerfile Multi-estágio:** Arquivo [`Dockerfile`](./Dockerfile) otimizado em Alpine Linux.
+- **Variável de Armazenamento:** Suporte à variável `DATA_DIR` para persistência dos dados.
+- **Monitoramento de Saúde:** Endpoint nativo de Health Check em `/api/health`.
+
+---
+
+### Opção 1: Deploy com 1 Clique via Blueprint (Recomendado)
+
+1. Crie ou acesse sua conta no [Render (render.com)](https://render.com).
+2. No painel inicial (Dashboard), clique em **New +** no canto superior direito ➔ selecione **Blueprint**.
+3. Conecte sua conta do GitHub e selecione o repositório:
+   👉 `fabiosilveira-dgidperj/QUIZ-ECA-Digital---DCOM`
+4. O Render detectará automaticamente o arquivo `render.yaml`:
+   - **Service Name:** `quiz-eca-digital-dprj`
+   - **Runtime:** `Node`
+   - **Plan:** `Free`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/api/health`
+5. Clique em **Apply**. Em cerca de 2 minutos, o Render construirá e publicará sua aplicação com um link seguro HTTPS (ex: `https://quiz-eca-digital-dprj.onrender.com`).
+
+---
+
+### Opção 2: Deploy Manual como Web Service
+
+1. No Dashboard do Render, clique em **New +** ➔ **Web Service**.
+2. Conecte o repositório do GitHub `QUIZ-ECA-Digital---DCOM`.
+3. Preencha os campos conforme abaixo:
+   - **Name:** `quiz-eca-digital`
+   - **Region:** `Ohio (US East)` ou `Oregon (US West)`
+   - **Branch:** `main`
+   - **Root Directory:** *(deixe em branco)*
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Instance Type:** `Free`
+4. Expanda a seção **Advanced**:
+   - Adicione as variáveis de ambiente:
+     - `NODE_ENV` = `production`
+     - `PORT` = `10000`
+   - **Health Check Path:** `/api/health`
+5. *(Opcional - Planos Pagos Starter):* Em **Disks**, adicione um disco persistente com Mount Path `/var/data` e defina a variável `DATA_DIR=/var/data` para que rankings e logins nunca sejam resetados em reinicializações do servidor.
+6. Clique em **Create Web Service**.
+
+---
+
+## ☁️ Deploy no Google Apps Script (Guia Passo a Passo)
 
 A pasta [`gas/`](./gas) contém todos os arquivos prontos:
 - [`gas/Code.js`](./gas/Code.js): Backend Apps Script com autenticação (`loginUser`, `registerUser`), banco em duas abas (`Usuarios` e `Ranking`), `LockService` e `CacheService`.

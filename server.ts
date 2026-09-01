@@ -29,8 +29,16 @@ interface StoredUser {
   createdAt: string;
 }
 
-const DATA_FILE = path.join(process.cwd(), 'ranking-data.json');
-const USERS_FILE = path.join(process.cwd(), 'users-data.json');
+const DATA_DIRECTORY = process.env.DATA_DIR || process.cwd();
+if (!fs.existsSync(DATA_DIRECTORY)) {
+  try {
+    fs.mkdirSync(DATA_DIRECTORY, { recursive: true });
+  } catch (err) {
+    console.error('Could not create DATA_DIRECTORY:', err);
+  }
+}
+const DATA_FILE = path.join(DATA_DIRECTORY, 'ranking-data.json');
+const USERS_FILE = path.join(DATA_DIRECTORY, 'users-data.json');
 
 function hashPassword(password: string, salt: string): string {
   return crypto.createHmac('sha256', salt).update(password).digest('hex');
@@ -421,7 +429,8 @@ async function startServer() {
   });
 
   // Vite middleware for development vs Production static serving
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction = process.env.NODE_ENV === 'production' || __dirname.includes('dist') || !process.argv[1]?.endsWith('server.ts');
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
