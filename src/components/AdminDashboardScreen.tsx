@@ -10,10 +10,12 @@ import {
   RefreshCw,
   Search,
   ArrowLeft,
+  BarChart3,
 } from 'lucide-react';
 import { AdminDashboardData } from '../types';
 import { fetchAdminDashboard, deleteRankingEntry, deleteUserAccount, resetAllRankings } from '../utils/api';
 import { soundManager } from '../utils/audio';
+import QuestionStatsView from './QuestionStatsView';
 
 interface AdminDashboardScreenProps {
   onBackToApp: () => void;
@@ -23,7 +25,7 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'ranking' | 'users'>('ranking');
+  const [activeTab, setActiveTab] = useState<'ranking' | 'users' | 'questions'>('ranking');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modals
@@ -303,6 +305,18 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
               <Users className="w-4 h-4" />
               Usuários Inscritos ({data?.users.length || 0})
             </button>
+
+            <button
+              onClick={() => setActiveTab('questions')}
+              className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'questions'
+                  ? 'bg-[#004A2F] text-white shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4" />
+              Análise por Questão (10)
+            </button>
           </div>
 
           {/* Search Field */}
@@ -465,6 +479,11 @@ export default function AdminDashboardScreen({ onBackToApp }: AdminDashboardScre
             </table>
           </div>
         </div>
+      )}
+
+      {/* 3. QUESTION STATS TAB */}
+      {activeTab === 'questions' && (
+        <QuestionStatsView questionStats={data?.questionStats || []} />
       )}
 
       {/* CONFIRM DELETE ENTRY MODAL */}

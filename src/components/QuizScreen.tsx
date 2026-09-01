@@ -131,6 +131,7 @@ export default function QuizScreen({
       totalQuestions,
       timeSeconds: Number(currentTotalTime.toFixed(1)),
       userId: userProfile.id,
+      answers: updatedAnswers,
     }).catch(() => {});
   };
 

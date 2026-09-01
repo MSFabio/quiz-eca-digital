@@ -65,6 +65,7 @@ export default function App() {
         totalQuestions: result.totalQuestions,
         timeSeconds: result.totalTimeSeconds,
         userId: currentUser?.id,
+        answers: result.answers,
       });
 
       if (resp && resp.rankPosition) {

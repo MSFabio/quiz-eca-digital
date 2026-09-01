@@ -11,10 +11,12 @@ import {
   ArrowLeft,
   Sparkles,
   Users,
+  BarChart3,
 } from 'lucide-react';
-import { RankingEntry } from '../types';
-import { fetchRankings, resetAllRankings } from '../utils/api';
+import { RankingEntry, QuestionStat } from '../types';
+import { fetchRankingsData, resetAllRankings } from '../utils/api';
 import { soundManager } from '../utils/audio';
+import QuestionStatsView from './QuestionStatsView';
 
 interface RankingScreenProps {
   onBackToHome: () => void;
@@ -26,6 +28,8 @@ export default function RankingScreen({
   highlightEntryId,
 }: RankingScreenProps) {
   const [rankings, setRankings] = useState<RankingEntry[]>([]);
+  const [questionStats, setQuestionStats] = useState<QuestionStat[]>([]);
+  const [activeTab, setActiveTab] = useState<'leaderboard' | 'question_stats'>('leaderboard');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -37,8 +41,11 @@ export default function RankingScreen({
 
   const loadData = async () => {
     try {
-      const data = await fetchRankings();
-      setRankings(data);
+      const data = await fetchRankingsData();
+      setRankings(data.rankings || []);
+      if (data.questionStats && Array.isArray(data.questionStats)) {
+        setQuestionStats(data.questionStats);
+      }
     } catch {
       // ignore
     } finally {
@@ -234,7 +241,44 @@ export default function RankingScreen({
         </div>
       </div>
 
-      {/* Top 3 Podium (if at least 1 participant exists) */}
+      {/* Navigation Segmented Tabs (Classificação Geral vs Desempenho por Questão) */}
+      <div className="flex p-1.5 bg-gray-100 rounded-2xl max-w-md mx-auto mb-8 border border-gray-200 shadow-inner">
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playClick();
+            setActiveTab('leaderboard');
+          }}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            activeTab === 'leaderboard'
+              ? 'bg-white text-[#004A2F] shadow-sm'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Trophy className="w-4 h-4 text-[#C8A355]" />
+          <span>Classificação Geral</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playClick();
+            setActiveTab('question_stats');
+          }}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            activeTab === 'question_stats'
+              ? 'bg-white text-[#004A2F] shadow-sm'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4 text-[#004A2F]" />
+          <span>Desempenho por Questão</span>
+        </button>
+      </div>
+
+      {activeTab === 'leaderboard' ? (
+        <>
+          {/* Top 3 Podium (if at least 1 participant exists) */}
       {filteredRankings.length > 0 && searchQuery === '' && (
         <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-2xl mx-auto items-end mb-10 pt-4">
           {/* 2nd Place (Silver) */}
@@ -457,6 +501,10 @@ export default function RankingScreen({
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <QuestionStatsView questionStats={questionStats} />
+      )}
 
       {/* Admin Panel Modal */}
       {showAdminModal && (

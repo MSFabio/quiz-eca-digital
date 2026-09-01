@@ -367,7 +367,8 @@ function getRankings() {
       totalQuestions: Number(row[6] || 10),
       timeSeconds: Number(row[7] || 0),
       userId: row[8] ? String(row[8]) : undefined,
-      createdAt: String(row[9] || new Date().toISOString())
+      createdAt: String(row[9] || new Date().toISOString()),
+      answers: row[10] ? (function() { try { return JSON.parse(row[10]); } catch (e) { return []; } })() : []
     });
   }
 
@@ -394,6 +395,7 @@ function submitGameScore(payload) {
     const numTotal = Math.max(1, Math.min(50, Number(p.totalQuestions) || 10));
     const numTime = Math.max(0.1, Number(p.timeSeconds) || 0);
     const createdAt = new Date().toISOString();
+    const answersJson = Array.isArray(p.answers) ? JSON.stringify(p.answers) : '[]';
 
     const sheet = getOrCreateRankingSheet();
     const data = sheet.getDataRange().getValues();
@@ -420,6 +422,9 @@ function submitGameScore(payload) {
         numTotal,
         numTime
       ]]);
+      if (Array.isArray(p.answers) && p.answers.length > 0) {
+        sheet.getRange(rowIndex, 11).setValue(answersJson);
+      }
     } else {
       sheet.appendRow([
         entryId,
@@ -431,7 +436,8 @@ function submitGameScore(payload) {
         numTotal,
         numTime,
         p.userId || '',
-        createdAt
+        createdAt,
+        answersJson
       ]);
     }
 

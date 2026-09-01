@@ -1,4 +1,4 @@
-﻿import { RankingEntry, User, AuthResponse, AdminDashboardData } from '../types';
+import { RankingEntry, User, AuthResponse, AdminDashboardData, QuestionStat, UserAnswer } from '../types';
 import { safeStorage } from './storage';
 
 const LOCAL_STORAGE_KEY = 'dprj_eca_quiz_rankings';
@@ -232,13 +232,18 @@ function saveLocalRankings(data: RankingEntry[]) {
   }
 }
 
-export async function fetchRankings(): Promise<RankingEntry[]> {
+export interface FetchRankingsResult {
+  rankings: RankingEntry[];
+  questionStats?: QuestionStat[];
+}
+
+export async function fetchRankingsData(): Promise<FetchRankingsResult> {
   if (isGasEnvironment()) {
     try {
-      const data = await callGasWithTimeout<{ success: boolean; total: number; rankings: RankingEntry[] }>('getRankings');
+      const data = await callGasWithTimeout<{ success: boolean; total: number; rankings: RankingEntry[]; questionStats?: QuestionStat[] }>('getRankings');
       if (data && Array.isArray(data.rankings)) {
         saveLocalRankings(data.rankings);
-        return data.rankings;
+        return { rankings: data.rankings, questionStats: data.questionStats };
       }
     } catch (err) {
       console.warn('GAS fetchRankings error fallback', err);
@@ -253,13 +258,18 @@ export async function fetchRankings(): Promise<RankingEntry[]> {
       const data = await res.json();
       if (Array.isArray(data.rankings)) {
         saveLocalRankings(data.rankings);
-        return data.rankings;
+        return { rankings: data.rankings, questionStats: data.questionStats };
       }
     }
   } catch {
     // network or dev fallback
   }
-  return getLocalRankings();
+  return { rankings: getLocalRankings() };
+}
+
+export async function fetchRankings(): Promise<RankingEntry[]> {
+  const result = await fetchRankingsData();
+  return result.rankings;
 }
 
 export async function submitGameScore(payload: {
@@ -271,6 +281,7 @@ export async function submitGameScore(payload: {
   totalQuestions: number;
   timeSeconds: number;
   userId?: string;
+  answers?: UserAnswer[];
 }): Promise<{ success: boolean; rankPosition: number; totalParticipants: number; entry: RankingEntry }> {
   if (isGasEnvironment()) {
     try {

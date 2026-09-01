@@ -42,6 +42,27 @@ export interface AuthResponse {
   error?: string;
 }
 
+export interface OptionStat {
+  optionId: 'A' | 'B' | 'C' | 'D';
+  text: string;
+  count: number;
+  percentage: number;
+  isCorrect: boolean;
+}
+
+export interface QuestionStat {
+  questionId: number;
+  number: number;
+  title: string;
+  topic: string;
+  scenario: string;
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  totalResponses: number;
+  accuracyPercentage: number;
+  options: OptionStat[];
+}
+
 export interface AdminDashboardData {
   totalUsers: number;
   totalMatches: number;
@@ -50,6 +71,7 @@ export interface AdminDashboardData {
   topScore: number;
   rankings: RankingEntry[];
   users: User[];
+  questionStats?: QuestionStat[];
 }
 
 export interface UserAnswer {
@@ -83,6 +105,8 @@ export interface RankingEntry {
   correctCount: number;
   totalQuestions: number;
   timeSeconds: number;
+  userId?: string;
+  answers?: UserAnswer[];
   createdAt: string;
 }
 

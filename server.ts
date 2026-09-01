@@ -3,6 +3,15 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
+import { QUIZ_QUESTIONS } from './src/data/questions';
+
+interface UserAnswer {
+  questionId: number;
+  selectedOption: 'A' | 'B' | 'C' | 'D';
+  isCorrect: boolean;
+  timeSpentSeconds: number;
+  pointsEarned: number;
+}
 
 interface RankingEntry {
   id: string;
@@ -14,6 +23,7 @@ interface RankingEntry {
   totalQuestions: number;
   timeSeconds: number;
   userId?: string;
+  answers?: UserAnswer[];
   createdAt: string;
 }
 
@@ -314,10 +324,65 @@ async function startServer() {
   });
 
   // ==========================================
+  // STATS & RANKING HELPER
+  // ==========================================
+
+  function computeQuestionStats(rankings: RankingEntry[]) {
+    return QUIZ_QUESTIONS.map((q) => {
+      // Gather all answers given for this specific question
+      const answersForQuestion: UserAnswer[] = [];
+      rankings.forEach((r) => {
+        if (Array.isArray(r.answers)) {
+          const ans = r.answers.find((a) => a.questionId === q.id);
+          if (ans && ans.selectedOption) {
+            answersForQuestion.push(ans);
+          }
+        }
+      });
+
+      const totalResponses = answersForQuestion.length;
+      const optionCounts: Record<'A' | 'B' | 'C' | 'D', number> = { A: 0, B: 0, C: 0, D: 0 };
+      answersForQuestion.forEach((a) => {
+        if (optionCounts[a.selectedOption] !== undefined) {
+          optionCounts[a.selectedOption]++;
+        }
+      });
+
+      const options = q.options.map((opt) => {
+        const count = optionCounts[opt.id] || 0;
+        const percentage = totalResponses > 0 ? Math.round((count / totalResponses) * 100) : 0;
+        return {
+          optionId: opt.id,
+          text: opt.text,
+          count,
+          percentage,
+          isCorrect: opt.id === q.correctAnswer,
+        };
+      });
+
+      const correctCount = optionCounts[q.correctAnswer] || 0;
+      const accuracyPercentage = totalResponses > 0 ? Math.round((correctCount / totalResponses) * 100) : 0;
+
+      return {
+        questionId: q.id,
+        number: q.number,
+        title: q.title,
+        topic: q.topic,
+        scenario: q.scenario,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        totalResponses,
+        accuracyPercentage,
+        options,
+      };
+    });
+  }
+
+  // ==========================================
   // RANKING & GAME ROUTES
   // ==========================================
 
-  // Get current ranking sorted by Score DESC then Time ASC
+  // Get current ranking sorted by Score DESC then Time ASC + Question Performance
   app.get('/api/ranking', (req, res) => {
     const sorted = [...rankingList].sort((a, b) => {
       if (b.score !== a.score) {
@@ -325,16 +390,18 @@ async function startServer() {
       }
       return a.timeSeconds - b.timeSeconds;
     });
+    const questionStats = computeQuestionStats(rankingList);
     res.json({
       success: true,
       total: sorted.length,
       rankings: sorted,
+      questionStats,
     });
   });
 
-  // Add new match result
+  // Add or update match result
   app.post('/api/ranking', (req, res) => {
-    const { name, organization, avatar, score, correctCount, totalQuestions, timeSeconds, userId } = req.body;
+    const { name, organization, avatar, score, correctCount, totalQuestions, timeSeconds, userId, answers } = req.body;
 
     if (!name || score === undefined || timeSeconds === undefined) {
       return res.status(400).json({ error: 'Campos obrigatórios ausentes.' });
@@ -359,6 +426,9 @@ async function startServer() {
       targetEntry.correctCount = numCorrect;
       targetEntry.totalQuestions = numTotal;
       targetEntry.timeSeconds = numTime;
+      if (Array.isArray(answers) && answers.length > 0) {
+        targetEntry.answers = answers;
+      }
     } else {
       targetEntry = {
         id: 'entry-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
@@ -370,6 +440,7 @@ async function startServer() {
         totalQuestions: numTotal,
         timeSeconds: numTime,
         userId: userId ? String(userId) : undefined,
+        answers: Array.isArray(answers) ? answers : [],
         createdAt: new Date().toISOString(),
       };
       rankingList.push(targetEntry);
@@ -433,6 +504,7 @@ async function startServer() {
     });
 
     const safeUsers = usersList.map(sanitizeSafeUser);
+    const questionStats = computeQuestionStats(rankingList);
 
     res.json({
       success: true,
@@ -443,6 +515,7 @@ async function startServer() {
       topScore,
       rankings: sortedRankings,
       users: safeUsers,
+      questionStats,
     });
   });
 
