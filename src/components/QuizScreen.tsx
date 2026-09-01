@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Clock, Award, CheckCircle2, XCircle, ArrowRight, AlertCircle, RotateCcw } from 'lucide-react';
 import { Question, UserAnswer, UserProfile, GameResult } from '../types';
 import { QUIZ_QUESTIONS } from '../data/questions';
@@ -276,7 +276,8 @@ export default function QuizScreen({
               >
                 {/* Option Letter Badge */}
                 <span
-                  className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border transition ${badgeStyle}`}
+                  translate="no"
+                  className={`notranslate shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm border transition ${badgeStyle}`}
                 >
                   {opt.id}
                 </span>
@@ -317,7 +318,7 @@ export default function QuizScreen({
                 ) : (
                   <>
                     <AlertCircle className="w-5 h-5 text-[#C8A355]" />
-                    <span>A resposta correta era a Letra {currentQuestion.correctAnswer}</span>
+                    <span>A resposta correta era a Letra <strong translate="no" className="notranslate font-bold">{currentQuestion.correctAnswer}</strong></span>
                   </>
                 )}
               </div>
