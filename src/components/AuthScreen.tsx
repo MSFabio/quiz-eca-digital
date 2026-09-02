@@ -3,6 +3,7 @@ import { ShieldCheck, Lock, Mail, User as UserIcon, Building, Eye, EyeOff, LogIn
 import { User } from '../types';
 import { loginUser, registerUser } from '../utils/api';
 import { soundManager } from '../utils/audio';
+import pomarLogo from '../assets/logo-pomar.png';
 
 const AVATAR_OPTIONS = [
   '👩‍⚖️', '👨‍⚖️', '👩‍💻', '👨‍💻', '👩‍🎓', '👨‍🎓',
@@ -108,19 +109,34 @@ export default function AuthScreen({ onAuthSuccess, onViewRanking }: AuthScreenP
         <div className="absolute right-24 -top-12 w-40 h-40 bg-[#C8A355]/15 rounded-full blur-xl pointer-events-none" />
 
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#003823]/90 border border-[#C8A355]/40 rounded-full text-xs font-semibold text-[#C8A355] mb-4">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#C8A355]" />
-            Defensoria Pública do Estado do Rio de Janeiro
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#003823]/90 border border-[#C8A355]/40 rounded-full text-xs font-semibold text-[#C8A355] mb-4">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#C8A355]" />
+                Defensoria Pública do Estado do Rio de Janeiro
+              </div>
+
+              <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2 text-white">
+                Quiz <span className="text-[#C8A355]">ECA Digital</span>
+              </h1>
+
+              <p className="text-sm sm:text-base text-emerald-100 max-w-xl leading-relaxed">
+                Descubra e aprofunde seus conhecimentos sobre os direitos de crianças e adolescentes no ambiente digital!
+                Faça login ou crie sua conta para participar do ranking oficial.
+              </p>
+            </div>
+
+            {/* Pomar Logo Container */}
+            <div className="shrink-0 flex items-center justify-center sm:justify-end">
+              <div className="bg-white rounded-2xl p-3 sm:p-3.5 shadow-xl border-2 border-[#C8A355]/40 max-w-[190px] sm:max-w-[220px] transition transform hover:scale-105 duration-200">
+                <img
+                  src={pomarLogo}
+                  alt="Pomar - Polo de Mediação e Ações Restaurativas"
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+            </div>
           </div>
-
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2 text-white">
-            Quiz <span className="text-[#C8A355]">ECA Digital</span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-emerald-100 max-w-2xl leading-relaxed">
-            Descubra e aprofunde seus conhecimentos sobre os direitos de crianças e adolescentes no ambiente digital!
-            Faça login ou crie sua conta para participar do ranking oficial.
-          </p>
 
           {/* Key Feature Highlights */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-emerald-800/60">

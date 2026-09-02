@@ -117,63 +117,91 @@ export default function ResultScreen({
 
         {/* Primary Metrics Highlights */}
         <div className="p-6 sm:p-8">
-          <div className="grid grid-cols-2 gap-4 sm:gap-6 mb-8">
-            {/* Score Highlight */}
-            <div className="bg-gradient-to-br from-emerald-50 to-[#e0f2e8] border-2 border-emerald-300/80 rounded-2xl p-4 sm:p-6 text-center">
+          {/* Main 4 KPI Cards: Acertos, Erros, Pontuação, Tempo */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
+            {/* 1. Quantitativo de Acertos */}
+            <div className="bg-gradient-to-br from-emerald-50 to-[#e0f2e8] border-2 border-emerald-400 rounded-2xl p-4 sm:p-5 text-center shadow-xs">
               <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#004A2F] block mb-1">
-                Pontuação Final
+                Acertos
               </span>
-              <div className="flex items-center justify-center gap-1 text-3xl sm:text-5xl font-black text-[#004A2F]">
-                <Award className="w-7 h-7 sm:w-10 sm:h-10 text-[#C8A355] shrink-0" />
-                <span>{result.score}</span>
+              <div className="flex items-center justify-center gap-1.5 text-3xl sm:text-4xl font-black text-[#004A2F]">
+                <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8 text-[#004A2F] shrink-0" />
+                <span>{result.correctCount}</span>
               </div>
               <span className="text-[11px] sm:text-xs text-[#004A2F]/80 font-semibold mt-1 block">
+                de {result.totalQuestions} questões
+              </span>
+            </div>
+
+            {/* 2. Quantitativo de Erros */}
+            <div className="bg-gradient-to-br from-red-50 to-[#fee2e2] border-2 border-red-300 rounded-2xl p-4 sm:p-5 text-center shadow-xs">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-red-800 block mb-1">
+                Erros
+              </span>
+              <div className="flex items-center justify-center gap-1.5 text-3xl sm:text-4xl font-black text-red-600">
+                <XCircle className="w-7 h-7 sm:w-8 sm:h-8 text-red-600 shrink-0" />
+                <span>{result.totalQuestions - result.correctCount}</span>
+              </div>
+              <span className="text-[11px] sm:text-xs text-red-700/80 font-semibold mt-1 block">
+                de {result.totalQuestions} questões
+              </span>
+            </div>
+
+            {/* 3. Pontuação Final */}
+            <div className="bg-gradient-to-br from-[#FBF7EE] to-[#F5EBCE] border-2 border-[#E5C378] rounded-2xl p-4 sm:p-5 text-center shadow-xs">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-950 block mb-1">
+                Pontuação
+              </span>
+              <div className="flex items-center justify-center gap-1 text-3xl sm:text-4xl font-black text-amber-900">
+                <Award className="w-7 h-7 sm:w-8 sm:h-8 text-[#C8A355] shrink-0" />
+                <span>{result.score}</span>
+              </div>
+              <span className="text-[11px] sm:text-xs text-amber-900/80 font-semibold mt-1 block">
                 pontos conquistados
               </span>
             </div>
 
-            {/* Time Highlight */}
-            <div className="bg-gradient-to-br from-[#FBF7EE] to-[#F5EBCE] border-2 border-[#E5C378] rounded-2xl p-4 sm:p-6 text-center">
-              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-amber-950 block mb-1">
-                Tempo Decorrido
+            {/* 4. Tempo Total */}
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-2xl p-4 sm:p-5 text-center shadow-xs">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                Tempo Total
               </span>
-              <div className="flex items-center justify-center gap-1 text-3xl sm:text-5xl font-black text-amber-950 font-mono">
-                <Clock className="w-7 h-7 sm:w-10 sm:h-10 text-[#C8A355] shrink-0" />
+              <div className="flex items-center justify-center gap-1 text-2xl sm:text-3xl font-black text-slate-800 font-mono">
+                <Clock className="w-6 h-6 sm:w-7 sm:h-7 text-[#004A2F] shrink-0" />
                 <span>{formatTime(result.totalTimeSeconds)}</span>
               </div>
-              <span className="text-[11px] sm:text-xs text-amber-900 font-semibold mt-1 block">
+              <span className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-1 block">
                 cronômetro oficial
               </span>
             </div>
           </div>
 
           {/* Detailed Statistics Row */}
-          <div className="grid grid-cols-3 gap-3 bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center mb-8">
             <div>
               <span className="text-[11px] sm:text-xs text-gray-500 font-medium block">
-                Acertos
-              </span>
-              <div className="flex items-center justify-center gap-1 text-base sm:text-xl font-bold text-gray-900 mt-0.5">
-                <CheckCircle2 className="w-4 h-4 text-[#004A2F]" />
-                <span>{result.correctCount} / {result.totalQuestions}</span>
-              </div>
-            </div>
-
-            <div className="border-x border-gray-200">
-              <span className="text-[11px] sm:text-xs text-gray-500 font-medium block">
-                Aproveitamento
+                Taxa de Aproveitamento
               </span>
               <span className="text-base sm:text-xl font-bold text-[#004A2F] mt-0.5 block">
                 {accuracyPercent}%
               </span>
             </div>
 
-            <div>
+            <div className="border-x border-gray-200">
               <span className="text-[11px] sm:text-xs text-gray-500 font-medium block">
-                Tempo Médio / Q
+                Tempo Médio por Questão
               </span>
               <span className="text-base sm:text-xl font-bold text-gray-900 mt-0.5 block font-mono">
                 {(result.totalTimeSeconds / result.totalQuestions).toFixed(1)}s
+              </span>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200">
+              <span className="text-[11px] sm:text-xs text-gray-500 font-medium block">
+                Posição no Ranking
+              </span>
+              <span className="text-base sm:text-xl font-bold text-[#C8A355] mt-0.5 block">
+                {result.rankPosition ? `${result.rankPosition}º Lugar` : 'Classificado'}
               </span>
             </div>
           </div>
